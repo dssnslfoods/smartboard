@@ -10,13 +10,9 @@ import { CustomersPage } from '@/pages/CustomersPage'
 import { ReportsPage } from '@/pages/ReportsPage'
 
 const router = createBrowserRouter([
-  // Intelligence Dashboard is the primary landing page (standalone, light theme).
-  { path: '/', element: <IntelligencePage /> },
-  { path: '/customers', element: <CustomersPage /> },
-  { path: '/reports', element: <ReportsPage /> },
-  // The multi-source Boardroom portal lives under /boardroom.
+  // Boardroom multi-source portal — primary landing page.
   {
-    path: '/boardroom',
+    path: '/',
     element: <AppShell />,
     children: [
       { index: true, element: <HomePage /> },
@@ -26,6 +22,10 @@ const router = createBrowserRouter([
       { path: 'settings', element: <SettingsPage /> },
     ],
   },
+  // SmartSales Intelligence Dashboard — standalone light-theme portal.
+  { path: '/smartsales', element: <IntelligencePage /> },
+  { path: '/smartsales/customers', element: <CustomersPage /> },
+  { path: '/smartsales/reports', element: <ReportsPage /> },
   { path: '*', element: <Navigate to="/" replace /> },
 ])
 

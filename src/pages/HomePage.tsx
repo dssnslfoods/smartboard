@@ -172,7 +172,7 @@ export function HomePage() {
           <Button
             variant="secondary"
             size="md"
-            onClick={() => navigate(`/boardroom/dashboard/${activeDash.id}`)}
+            onClick={() => navigate(`/dashboard/${activeDash.id}`)}
           >
             <ExternalLink className="h-4 w-4" /> Full view
           </Button>
@@ -202,7 +202,7 @@ export function HomePage() {
               >
                 <Trash2 className="h-4 w-4" />
               </Button>
-              <Button variant="secondary" onClick={() => navigate('/boardroom/widget-builder')}>
+              <Button variant="secondary" onClick={() => navigate('/widget-builder')}>
                 <Pencil className="h-4 w-4" /> Add widget
               </Button>
             </>
@@ -217,7 +217,7 @@ export function HomePage() {
             <LayoutGrid className="h-10 w-10" />
             <p className="text-sm">This dashboard is empty.</p>
             {isAdmin && (
-              <Button variant="primary" onClick={() => navigate('/boardroom/widget-builder')}>
+              <Button variant="primary" onClick={() => navigate('/widget-builder')}>
                 <Plus className="h-4 w-4" /> Add widget
               </Button>
             )}

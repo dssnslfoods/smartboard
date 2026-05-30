@@ -5,9 +5,9 @@ import { INTEL_META } from '@/lib/intelligenceData'
 
 // Top nav items (no sidebar — compact top-only navigation)
 const NAV = [
-  { label: 'Dashboard', icon: LayoutDashboard, to: '/' },
-  { label: 'Customers', icon: Users, to: '/customers' },
-  { label: 'Reports', icon: FileText, to: '/reports' },
+  { label: 'Dashboard', icon: LayoutDashboard, to: '/smartsales' },
+  { label: 'Customers', icon: Users, to: '/smartsales/customers' },
+  { label: 'Reports', icon: FileText, to: '/smartsales/reports' },
 ]
 
 export function SmartSalesLayout({ children }: { children: ReactNode }) {
@@ -34,7 +34,7 @@ export function SmartSalesLayout({ children }: { children: ReactNode }) {
             <NavLink
               key={n.to}
               to={n.to}
-              end={n.to === '/'}
+              end={n.to === '/smartsales'}
               className={({ isActive }) =>
                 `flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-bold uppercase tracking-wide transition-colors ${
                   isActive
@@ -48,7 +48,7 @@ export function SmartSalesLayout({ children }: { children: ReactNode }) {
             </NavLink>
           ))}
           <Link
-            to="/boardroom"
+            to="/"
             className="ml-3 flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-[10px] font-bold uppercase tracking-wide text-slate-400 hover:text-slate-700 transition-colors"
           >
             Boardroom →

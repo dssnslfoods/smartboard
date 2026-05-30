@@ -1,9 +1,10 @@
-import { NavLink, Outlet } from 'react-router-dom'
+import { Link, NavLink, Outlet } from 'react-router-dom'
 import {
   Database,
   LayoutGrid,
   PanelsTopLeft,
   Settings,
+  Sparkles,
   Wrench,
   ShieldCheck,
   Eye,
@@ -14,10 +15,10 @@ import { SourceSelector } from './SourceSelector'
 import { Badge } from '@/components/ui/Badge'
 
 const NAV = [
-  { to: '/boardroom', label: 'Hub', icon: PanelsTopLeft, end: true },
-  { to: '/boardroom/sources', label: 'Sources', icon: Database, adminOnly: true },
-  { to: '/boardroom/widget-builder', label: 'Widget Builder', icon: Wrench, adminOnly: true },
-  { to: '/boardroom/settings', label: 'Settings', icon: Settings },
+  { to: '/', label: 'Hub', icon: PanelsTopLeft, end: true },
+  { to: '/sources', label: 'Sources', icon: Database, adminOnly: true },
+  { to: '/widget-builder', label: 'Widget Builder', icon: Wrench, adminOnly: true },
+  { to: '/settings', label: 'Settings', icon: Settings },
 ]
 
 export function AppShell() {
@@ -60,6 +61,17 @@ export function AppShell() {
             </NavLink>
           ))}
         </nav>
+
+        {/* SmartSales shortcut */}
+        <div className="px-3 pb-1">
+          <Link
+            to="/smartsales"
+            className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium text-text-secondary hover:bg-bg-card hover:text-text-primary transition-colors"
+          >
+            <Sparkles className="h-4 w-4 text-amber-400" />
+            SmartSales
+          </Link>
+        </div>
 
         {/* Role switcher */}
         <div className="border-t border-border p-3">

@@ -65,7 +65,7 @@ export function SourceSelector() {
             <button
               onClick={() => {
                 setOpen(false)
-                navigate('/boardroom/sources')
+                navigate('/sources')
               }}
               className="flex w-full items-center gap-2 border-t border-border px-3 py-2.5 text-sm text-accent-blue hover:bg-bg-card"
             >
