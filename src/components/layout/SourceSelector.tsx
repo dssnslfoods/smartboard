@@ -3,7 +3,7 @@ import { ChevronDown, Database, Plus } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useDataSourceStore } from '@/stores/dataSourceStore'
 import { DEMO_SOURCE_ID } from '@/lib/demoData'
-import { SNAPSHOT_META } from '@/lib/snapshotData'
+import { SNAPSHOT_SOURCES } from '@/lib/snapshotData'
 import { StatusDot } from '@/components/ui/StatusDot'
 import { cn } from '@/lib/utils'
 
@@ -13,7 +13,7 @@ export function SourceSelector() {
   const navigate = useNavigate()
 
   const all = [
-    { id: SNAPSHOT_META.id, name: SNAPSHOT_META.name, color: SNAPSHOT_META.color, isDemo: true },
+    ...SNAPSHOT_SOURCES.map((s) => ({ id: s.id, name: s.name, color: s.color, isDemo: true })),
     { id: DEMO_SOURCE_ID, name: 'Demo data', color: '#BC8CFF', isDemo: true },
     ...sources.map((s) => ({ id: s.id, name: s.name, color: s.color, isDemo: false })),
   ]

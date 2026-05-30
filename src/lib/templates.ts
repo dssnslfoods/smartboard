@@ -1,6 +1,7 @@
 import type { Dashboard, GridLayoutItem, WidgetConfig } from '@/types'
 import { DEMO_SOURCE_ID } from './demoData'
-import { SNAPSHOT_SOURCE_ID } from './snapshotData'
+import { SNAPSHOT_SOURCE_ID, SNAPSHOT_SOURCE_ID as SS } from './snapshotData'
+import { INVENTORY_SOURCE_ID } from './inventorySnapshot'
 
 let counter = 0
 const wid = (s: string) => `w_${s}_${counter++}`
@@ -358,12 +359,64 @@ function buildSmartSales(): Template {
   }
 }
 
+
+function buildInventory(): Template {
+  const iv = (w: Omit<WidgetConfig, "sourceId">): WidgetConfig => ({ sourceId: INVENTORY_SOURCE_ID, ...w })
+  const kStock = iv({ id: wid('kpi'), title: 'Total Stock Value', query: { table: 'inv_kpi', select: 'stock_value', aggregation: 'sum' }, visualization: 'kpi', size: 'sm', mapping: { valueKey: 'stock_value', prefix: '฿' } })
+  const kSku = iv({ id: wid('kpi'), title: 'Active SKUs', query: { table: 'inv_kpi', select: 'active_skus', aggregation: 'sum' }, visualization: 'kpi', size: 'sm', mapping: { valueKey: 'active_skus' } })
+  const kExpired = iv({ id: wid('kpi'), title: 'Expired Value', query: { table: 'inv_kpi', select: 'expired_value', aggregation: 'sum' }, visualization: 'kpi', size: 'sm', mapping: { valueKey: 'expired_value', prefix: '฿' } })
+  const kExpiring = iv({ id: wid('kpi'), title: 'Lots Expiring 30d', query: { table: 'inv_kpi', select: 'expiring_30d', aggregation: 'sum' }, visualization: 'kpi', size: 'sm', mapping: { valueKey: 'expiring_30d' } })
+  const line = iv({ id: wid('line'), title: 'Monthly Goods In vs Out', query: { table: 'inv_monthly', select: 'month,in_value,out_value', orderBy: 'month' }, visualization: 'line', size: 'lg', mapping: { xKey: 'month', yKeys: ['in_value','out_value'] } })
+  const groupPie = iv({ id: wid('pie'), title: 'Stock by Product Group', query: { table: 'inv_group', select: 'group,value' }, visualization: 'pie', size: 'md', mapping: { labelKey: 'group', valueKey: 'value' } })
+  const whBar = iv({ id: wid('bar'), title: 'Stock Value by Warehouse', query: { table: 'inv_warehouse', select: 'warehouse,value', orderBy: '-value' }, visualization: 'bar', size: 'lg', mapping: { labelKey: 'warehouse', valueKey: 'value' } })
+  const agingBar = iv({ id: wid('bar'), title: 'Stock Value by Lot Age', query: { table: 'inv_aging', select: 'bucket,value' }, visualization: 'bar', size: 'md', mapping: { labelKey: 'bucket', valueKey: 'value' } })
+  const itemTable = iv({ id: wid('table'), title: 'Top Items by Value', query: { table: 'inv_item', select: 'item,warehouse,qty,value', orderBy: '-value' }, visualization: 'table', size: 'full' })
+  const widgets: WidgetConfig[] = [kStock, kSku, kExpired, kExpiring, line, groupPie, whBar, agingBar, itemTable]
+  const layout: GridLayoutItem[] = [
+    { i: kStock.id, x: 0, y: 0, w: 3, h: 3 },
+    { i: kSku.id, x: 3, y: 0, w: 3, h: 3 },
+    { i: kExpired.id, x: 6, y: 0, w: 3, h: 3 },
+    { i: kExpiring.id, x: 9, y: 0, w: 3, h: 3 },
+    { i: line.id, x: 0, y: 3, w: 8, h: 7 },
+    { i: groupPie.id, x: 8, y: 3, w: 4, h: 7 },
+    { i: whBar.id, x: 0, y: 10, w: 8, h: 7 },
+    { i: agingBar.id, x: 8, y: 10, w: 4, h: 7 },
+    { i: itemTable.id, x: 0, y: 17, w: 12, h: 8 },
+  ]
+  return { template: 'inventory', name: 'Inventory Overview', description: 'Frozen food-service stock value, movement, aging and expiry (snapshot 2026-05-30).', widgets, layout }
+}
+
+function buildGroupExecutive(): Template {
+  const rev = { sourceId: SS, id: wid('kpi'), title: 'Sales Revenue', query: { table: 'ss_kpi', select: 'invoiced', aggregation: 'sum' }, visualization: 'kpi', size: 'sm', mapping: { valueKey: 'invoiced', prefix: '฿' } } as WidgetConfig
+  const ar = { sourceId: SS, id: wid('kpi'), title: 'A/R Outstanding', query: { table: 'ss_kpi', select: 'ar_balance', aggregation: 'sum' }, visualization: 'kpi', size: 'sm', mapping: { valueKey: 'ar_balance', prefix: '฿' } } as WidgetConfig
+  const stock = { sourceId: INVENTORY_SOURCE_ID, id: wid('kpi'), title: 'Stock Value', query: { table: 'inv_kpi', select: 'stock_value', aggregation: 'sum' }, visualization: 'kpi', size: 'sm', mapping: { valueKey: 'stock_value', prefix: '฿' } } as WidgetConfig
+  const expired = { sourceId: INVENTORY_SOURCE_ID, id: wid('kpi'), title: 'Expired Stock', query: { table: 'inv_kpi', select: 'expired_value', aggregation: 'sum' }, visualization: 'kpi', size: 'sm', mapping: { valueKey: 'expired_value', prefix: '฿' } } as WidgetConfig
+  const salesLine = { sourceId: SS, id: wid('line'), title: 'Sales: Revenue vs Collections', query: { table: 'ss_monthly', select: 'month,revenue,payments', orderBy: 'month' }, visualization: 'line', size: 'lg', mapping: { xKey: 'month', yKeys: ['revenue','payments'] } } as WidgetConfig
+  const invLine = { sourceId: INVENTORY_SOURCE_ID, id: wid('line'), title: 'Inventory: Goods In vs Out', query: { table: 'inv_monthly', select: 'month,in_value,out_value', orderBy: 'month' }, visualization: 'line', size: 'lg', mapping: { xKey: 'month', yKeys: ['in_value','out_value'] } } as WidgetConfig
+  const salesGroup = { sourceId: SS, id: wid('bar'), title: 'Sales by Product Group', query: { table: 'ss_item_group', select: 'item_group,revenue', orderBy: '-revenue' }, visualization: 'bar', size: 'md', mapping: { labelKey: 'item_group', valueKey: 'revenue' } } as WidgetConfig
+  const invGroup = { sourceId: INVENTORY_SOURCE_ID, id: wid('pie'), title: 'Stock by Group', query: { table: 'inv_group', select: 'group,value' }, visualization: 'pie', size: 'md', mapping: { labelKey: 'group', valueKey: 'value' } } as WidgetConfig
+  const widgets: WidgetConfig[] = [rev, ar, stock, expired, salesLine, invLine, salesGroup, invGroup]
+  const layout: GridLayoutItem[] = [
+    { i: rev.id, x: 0, y: 0, w: 3, h: 3 },
+    { i: ar.id, x: 3, y: 0, w: 3, h: 3 },
+    { i: stock.id, x: 6, y: 0, w: 3, h: 3 },
+    { i: expired.id, x: 9, y: 0, w: 3, h: 3 },
+    { i: salesLine.id, x: 0, y: 3, w: 6, h: 7 },
+    { i: invLine.id, x: 6, y: 3, w: 6, h: 7 },
+    { i: salesGroup.id, x: 0, y: 10, w: 6, h: 7 },
+    { i: invGroup.id, x: 6, y: 10, w: 6, h: 7 },
+  ]
+  return { template: 'group-exec', name: 'Group Executive (Cross-Source)', description: 'Sales (SmartSales) + Inventory combined — one board, two data sources.', widgets, layout }
+}
+
 export const TEMPLATES = [
   { id: 'smartsales', name: 'SmartSales Executive', build: buildSmartSales },
   { id: 'executive', name: 'Executive Overview', build: buildExecutive },
   { id: 'sales', name: 'Sales Performance', build: buildSales },
   { id: 'operations', name: 'Operations', build: buildOperations },
   { id: 'finance', name: 'Finance', build: buildFinance },
+  { id: 'inventory', name: 'Inventory Overview', build: buildInventory },
+  { id: 'group-exec', name: 'Group Executive (Cross-Source)', build: buildGroupExecutive },
 ] as const
 
 /** Seed the initial dashboard set (used on first load / when storage empty). */

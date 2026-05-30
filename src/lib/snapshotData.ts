@@ -1,4 +1,5 @@
 import type { QueryConfig } from '@/types'
+import { INVENTORY_META, INVENTORY_SOURCE_ID, INVENTORY_TABLES } from './inventorySnapshot'
 
 /**
  * SmartSales real-data SNAPSHOT.
@@ -131,12 +132,21 @@ const TABLES: Record<string, Row[]> = {
 
 export const SNAPSHOT_TABLES = Object.keys(TABLES)
 
+// All baked snapshot sources (read-only, login-free). Each registers its own
+// table set under a unique prefix (ss_ for SmartSales, inv_ for Inventory).
+export const SNAPSHOT_SOURCES = [SNAPSHOT_META, INVENTORY_META]
+const ALL_TABLES: Record<string, Row[]> = { ...TABLES, ...INVENTORY_TABLES }
+
+export function isSnapshotSource(id: string): boolean {
+  return id === SNAPSHOT_SOURCE_ID || id === INVENTORY_SOURCE_ID
+}
+
 export function isSnapshotTable(table: string): boolean {
-  return table in TABLES
+  return table in ALL_TABLES
 }
 
 export function runSnapshotQuery(config: QueryConfig): Row[] {
-  let rows = TABLES[config.table] ? [...TABLES[config.table]] : []
+  let rows = ALL_TABLES[config.table] ? [...ALL_TABLES[config.table]] : []
 
   for (const f of config.filters ?? []) {
     if (f.operator === 'eq') rows = rows.filter((r) => String(r[f.column]) === f.value)

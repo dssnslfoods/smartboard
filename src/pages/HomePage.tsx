@@ -22,7 +22,7 @@ import { Field, Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { TEMPLATES } from '@/lib/templates'
 import { DEMO_SOURCE_ID } from '@/lib/demoData'
-import { SNAPSHOT_META } from '@/lib/snapshotData'
+import { SNAPSHOT_SOURCES } from '@/lib/snapshotData'
 import type { GridLayoutItem, WidgetConfig } from '@/types'
 import { cn } from '@/lib/utils'
 
@@ -59,9 +59,9 @@ export function HomePage() {
   // Source color lookup
   const allSources = useMemo(() => {
     const map: Record<string, { name: string; color: string }> = {
-      [SNAPSHOT_META.id]: { name: SNAPSHOT_META.name, color: SNAPSHOT_META.color },
       [DEMO_SOURCE_ID]: { name: 'Demo data', color: '#BC8CFF' },
     }
+    for (const s of SNAPSHOT_SOURCES) map[s.id] = { name: s.name, color: s.color }
     for (const s of sources) map[s.id] = { name: s.name, color: s.color }
     return map
   }, [sources])

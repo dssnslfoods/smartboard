@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { runQuery } from '@/lib/queryEngine'
 import { DEMO_SOURCE_ID, isDemoTable, runDemoQuery } from '@/lib/demoData'
 import {
-  SNAPSHOT_SOURCE_ID,
+  isSnapshotSource,
   isSnapshotTable,
   runSnapshotQuery,
 } from '@/lib/snapshotData'
@@ -17,7 +17,7 @@ export interface WidgetData {
 
 async function fetchWidget(config: WidgetConfig): Promise<WidgetData> {
   // Real-data snapshot (read-only baked aggregates).
-  if (config.sourceId === SNAPSHOT_SOURCE_ID || isSnapshotTable(config.query.table)) {
+  if (isSnapshotSource(config.sourceId) || isSnapshotTable(config.query.table)) {
     const rows = runSnapshotQuery(config.query)
     return { rows, count: rows.length }
   }

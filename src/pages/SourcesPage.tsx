@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/Badge'
 import { StatusDot } from '@/components/ui/StatusDot'
 import { DEMO_SOURCE_ID } from '@/lib/demoData'
 import { SNAPSHOT_META } from '@/lib/snapshotData'
+import { INVENTORY_META } from '@/lib/inventorySnapshot'
 import { handoffTemplate, summarizeHandoff } from '@/lib/handoff'
 import { getCatalog } from '@/lib/sourceCatalog'
 import type { ConnectionState, DataSource } from '@/types'
@@ -19,7 +20,7 @@ const COLORS = ['#58A6FF', '#3FB950', '#BC8CFF', '#D29922', '#F85149', '#39C5CF'
 const empty = { name: '', url: '', anonKey: '', color: COLORS[0], description: '', handoff: '' }
 
 // IDs that are always present as built-in — hide from user-added list to avoid duplicates
-const BUILTIN_IDS = new Set([SNAPSHOT_META.id, DEMO_SOURCE_ID])
+const BUILTIN_IDS = new Set([SNAPSHOT_META.id, INVENTORY_META.id, DEMO_SOURCE_ID])
 
 const BUILTIN_ROWS = [
   {
@@ -28,6 +29,16 @@ const BUILTIN_ROWS = [
     url: 'https://jcueieskfvhmrwcmgnyh.supabase.co',
     color: SNAPSHOT_META.color,
     description: SNAPSHOT_META.description,
+    state: 'connected' as ConnectionState,
+    tableCount: undefined as number | undefined,
+    badge: 'Snapshot',
+  },
+  {
+    id: INVENTORY_META.id,
+    name: INVENTORY_META.name,
+    url: 'https://abhrghwszegwgkparkgb.supabase.co',
+    color: INVENTORY_META.color,
+    description: INVENTORY_META.description,
     state: 'connected' as ConnectionState,
     tableCount: undefined as number | undefined,
     badge: 'Snapshot',

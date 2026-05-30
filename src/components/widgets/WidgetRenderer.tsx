@@ -2,7 +2,7 @@ import type { WidgetConfig } from '@/types'
 import { useWidgetData } from '@/hooks/useWidgetData'
 import { useDataSourceStore } from '@/stores/dataSourceStore'
 import { DEMO_SOURCE_ID } from '@/lib/demoData'
-import { SNAPSHOT_META, SNAPSHOT_SOURCE_ID } from '@/lib/snapshotData'
+import { SNAPSHOT_SOURCES } from '@/lib/snapshotData'
 import { WidgetFrame } from './WidgetFrame'
 import { KPICard } from './KPICard'
 import { LineChartWidget } from './LineChartWidget'
@@ -26,18 +26,11 @@ export function WidgetRenderer({ config, editMode, onEdit, onRemove }: Props) {
   )
 
   const rows = data?.rows ?? []
+  const snap = SNAPSHOT_SOURCES.find((s) => s.id === config.sourceId)
   const sourceColor =
-    config.sourceId === SNAPSHOT_SOURCE_ID
-      ? SNAPSHOT_META.color
-      : config.sourceId === DEMO_SOURCE_ID
-        ? '#BC8CFF'
-        : source?.color
+    snap?.color ?? (config.sourceId === DEMO_SOURCE_ID ? '#BC8CFF' : source?.color)
   const sourceName =
-    config.sourceId === SNAPSHOT_SOURCE_ID
-      ? SNAPSHOT_META.name
-      : config.sourceId === DEMO_SOURCE_ID
-        ? 'Demo data'
-        : source?.name
+    snap?.name ?? (config.sourceId === DEMO_SOURCE_ID ? 'Demo data' : source?.name)
 
   const inner = () => {
     switch (config.visualization) {

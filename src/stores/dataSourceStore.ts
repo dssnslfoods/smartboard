@@ -84,9 +84,15 @@ export const useDataSourceStore = create<DataSourceState>((set, get) => ({
       })
       const latencyMs = Math.round(performance.now() - started)
       if (!res.ok) {
+        // Translate common PostgREST failures into actionable guidance.
+        const explain: Record<number, string> = {
+          401: 'Invalid anon key — copy the correct anon (public) key from Supabase → Settings → API',
+          403: 'Forbidden — key valid but blocked (check key role / RLS)',
+          404: 'Not found — check the project URL',
+        }
         const result: ConnectionStatus = {
           state: 'error',
-          error: `HTTP ${res.status}`,
+          error: explain[res.status] ?? `HTTP ${res.status}`,
           latencyMs,
           checkedAt: Date.now(),
         }
