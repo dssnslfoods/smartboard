@@ -286,11 +286,35 @@ export function WidgetBuilderPage() {
                     ]}
                   />
                 </Field>
-                <Field label="Group by">
-                  <Input value={st.groupBy} onChange={(e) => set('groupBy', e.target.value)} placeholder="region" />
+                <Field label="Group by" hint={dimCols.length ? `dims: ${dimCols.map((c) => c.name).join(', ')}` : undefined}>
+                  {dimCols.length ? (
+                    <Select
+                      value={st.groupBy}
+                      onChange={(e) => set('groupBy', e.target.value)}
+                      placeholder="(none)"
+                      options={[{ value: '', label: '(none)' }, ...dimCols.map((c) => ({ value: c.name, label: c.name }))]}
+                    />
+                  ) : (
+                    <Input value={st.groupBy} onChange={(e) => set('groupBy', e.target.value)} placeholder="region" />
+                  )}
                 </Field>
-                <Field label="Order by" hint="Prefix with - for descending.">
-                  <Input value={st.orderBy} onChange={(e) => set('orderBy', e.target.value)} placeholder="-amount" />
+                <Field label="Order by" hint={(metricCols.length || dateCols.length) ? 'prefix - for desc' : 'Prefix with - for descending.'}>
+                  {(metricCols.length || dateCols.length) ? (
+                    <Select
+                      value={st.orderBy}
+                      onChange={(e) => set('orderBy', e.target.value)}
+                      placeholder="(none)"
+                      options={[
+                        { value: '', label: '(none)' },
+                        ...[...dateCols, ...metricCols].flatMap((c) => [
+                          { value: c.name, label: `${c.name} ↑` },
+                          { value: `-${c.name}`, label: `${c.name} ↓` },
+                        ]),
+                      ]}
+                    />
+                  ) : (
+                    <Input value={st.orderBy} onChange={(e) => set('orderBy', e.target.value)} placeholder="-amount" />
+                  )}
                 </Field>
                 <Field label="Limit">
                   <Input value={st.limit} onChange={(e) => set('limit', e.target.value)} placeholder="50" inputMode="numeric" />
