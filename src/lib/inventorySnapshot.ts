@@ -23,7 +23,12 @@ export const INVENTORY_TABLES: Record<string, Row[]> = {
   inv_kpi: [
     {
       stock_value: 174691720,
-      active_skus: 908,
+      /**
+       * active_skus = distinct item_code ที่มี doc_date ใน 90 วัน
+       * (ตรงกับ v_active_item_count ของ Smart Inventory)
+       * NOT is_active=true ใน items master (ซึ่งได้ 908 — ต่างกัน)
+       */
+      active_skus: 380,
       total_skus: 1967,
       warehouses: 31,
       transactions: 266931,
@@ -98,7 +103,7 @@ export const INVENTORY_TABLES: Record<string, Row[]> = {
 }
 
 export const INVENTORY_CATALOG: TableMeta[] = [
-  { name: 'inv_kpi', description: 'Headline stock KPIs (single row)', columns: [
+  { name: 'inv_kpi', description: 'Headline stock KPIs (single row). active_skus = distinct items with doc_date within 90 days (matches v_active_item_count).', columns: [
     { name: 'stock_value', role: 'metric' }, { name: 'active_skus', role: 'metric' },
     { name: 'total_skus', role: 'metric' }, { name: 'warehouses', role: 'metric' },
     { name: 'expired_value', role: 'metric' }, { name: 'expiring_30d', role: 'metric' },
