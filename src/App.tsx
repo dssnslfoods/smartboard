@@ -8,6 +8,7 @@ import { SettingsPage } from '@/pages/SettingsPage'
 import { IntelligencePage } from '@/pages/IntelligencePage'
 import { CustomersPage } from '@/pages/CustomersPage'
 import { ReportsPage } from '@/pages/ReportsPage'
+import { ReportGalleryPage } from '@/pages/ReportGalleryPage'
 
 const router = createBrowserRouter([
   // Boardroom multi-source portal — primary landing page.
@@ -18,6 +19,7 @@ const router = createBrowserRouter([
       { index: true, element: <HomePage /> },
       { path: 'dashboard/:id', element: <DashboardView /> },
       { path: 'sources', element: <SourcesPage /> },
+      { path: 'reports-gallery/:sourceId', element: <ReportGalleryPage /> },
       { path: 'widget-builder', element: <WidgetBuilderPage /> },
       { path: 'settings', element: <SettingsPage /> },
     ],
