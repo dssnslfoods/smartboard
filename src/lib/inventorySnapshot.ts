@@ -6,13 +6,17 @@ import type { TableMeta } from '@/types'
  * All values verified against the live DB on 2026-05-30 via MCP read-only
  * SELECT queries. Definitions match the Smart Inventory application exactly.
  *
+ * CRITICAL: all lot/aging/expiry figures use ONLY the latest snapshot
+ *   (snapshot_date = 2026-04-30, the max in v_vv_lots). The v_lot_aging view
+ *   aggregates EVERY historical monthly snapshot, so it double-counts and gives
+ *   ~฿336M / 2456 lots — WRONG. The Smart Inventory "Lot Inventory" page filters
+ *   to the latest snapshot → 1,209 lots / ฿174.7M. We match that exactly.
+ *
  * Key definition notes:
  *  - active_skus   = v_active_item_count (distinct item_code with doc_date in 90d)
  *                    NOT items.is_active=true (which gives 908 — different meaning)
- *  - expired_lots  = v_vv_lots where days_remaining < 0
- *  - expiring_30d  = v_vv_lots where days_remaining between 0 and 30
- *  - lot aging     = v_lot_aging buckets (expired / 0-30 / 31-60 / 61-90 / 91-180 / 180+)
- *  - warehouse name = whs_name (Thai) from v_stock_onhand
+ *  - lot/aging/expiry = v_vv_lots WHERE snapshot_date = max(snapshot_date)
+ *  - warehouse name = whs_name (Thai) from latest-snapshot lots
  */
 
 export const INVENTORY_SOURCE_ID = 'inventory-snapshot'
@@ -30,15 +34,16 @@ export const INVENTORY_TABLES: Record<string, Row[]> = {
   // ── KPI (single row) ──────────────────────────────────────────────────────
   inv_kpi: [
     {
-      stock_value:       174691720,  // sum(stock_value) from v_stock_onhand
+      stock_value:       174691720,  // sum(stock_value), latest snapshot
       active_skus:       380,         // v_active_item_count — items with tx in 90d
       total_skus:        1967,        // count(*) from items
+      total_lots:        1209,        // lots in latest snapshot
       warehouses:        31,          // active warehouses
       transactions:      266931,      // total transaction rows
-      expired_lots:      417,         // v_vv_lots where days_remaining < 0
-      expired_value:     31300872,    // sum(stock_value) of expired lots
-      expiring_30d_lots: 51,          // v_vv_lots where days_remaining 0-30
-      expiring_30d_value:1379469,     // ฿1.38M expiring within 30 days
+      expired_lots:      198,         // latest snapshot, days_remaining < 0
+      expired_value:     14921753,    // ฿14.9M expired (latest snapshot)
+      expiring_30d_lots: 24,          // latest snapshot, days_remaining 0-30
+      expiring_30d_value:680090,      // ฿680K expiring within 30 days
       // Movement health (v_slow_moving)
       normal_items:      375,         // 54.5% of 688 tracked items
       slow_moving_items: 82,
@@ -72,14 +77,14 @@ export const INVENTORY_TABLES: Record<string, Row[]> = {
     { warehouse: 'คลังรอเคลมในประเทศ',              value: 2950 },
   ],
 
-  // ── Lot aging (v_lot_aging — matches Smart Inventory display) ─────────────
+  // ── Lot aging (latest snapshot — matches Lot Inventory page exactly) ──────
   inv_aging: [
-    { bucket: 'Expired',   value: 31300872,  lots: 417 },
-    { bucket: '0-30 days', value: 1379469,   lots: 51 },
-    { bucket: '31-60 days',value: 2680991,   lots: 67 },
-    { bucket: '61-90 days',value: 8459082,   lots: 98 },
-    { bucket: '91-180 days',value: 32517496, lots: 181 },
-    { bucket: '180+ days', value: 260148394, lots: 1642 },
+    { bucket: 'หมดอายุแล้ว', value: 14921753,  lots: 198 },
+    { bucket: '≤ 30 วัน',    value: 680090,    lots: 24 },
+    { bucket: '31-60 วัน',   value: 1118285,   lots: 32 },
+    { bucket: '61-90 วัน',   value: 4024629,   lots: 47 },
+    { bucket: '91-180 วัน',  value: 15833815,  lots: 88 },
+    { bucket: '> 180 วัน',   value: 138113145, lots: 820 },
   ],
 
   // ── Top 12 items by stock value (v_stock_onhand) ──────────────────────────
