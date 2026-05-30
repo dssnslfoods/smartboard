@@ -14,6 +14,7 @@ import { DEMO_SOURCE_ID } from '@/lib/demoData'
 import { SNAPSHOT_SOURCES } from '@/lib/snapshotData'
 import { handoffTemplate, summarizeHandoff } from '@/lib/handoff'
 import { getCatalog } from '@/lib/sourceCatalog'
+import { validateUrl, validateAnonKey, quickTest, normalizeSupabaseUrl } from '@/lib/supabaseValidation'
 import type { ConnectionState, DataSource } from '@/types'
 import { cn } from '@/lib/utils'
 
@@ -109,24 +110,39 @@ export function SourcesPage() {
     setForm({ name: s.name, url: s.url, anonKey: s.anonKey, color: s.color, description: s.description, handoff: s.handoff ?? '' })
     setOpen(true)
   }
+  const [preflight, setPreflight] = useState<{ testing: boolean; result?: { ok: boolean; latencyMs: number; tableCount?: number; error?: string } }>({ testing: false })
+
   const onUpload = (file: File) => {
     const r = new FileReader()
     r.onload = () => setForm((f) => ({ ...f, handoff: String(r.result) }))
     r.readAsText(file)
   }
+
+  // Real-time validation
+  const urlVal = validateUrl(form.url)
+  const keyVal = validateAnonKey(form.anonKey, urlVal.ref)
+  const canSave = form.name.trim() && urlVal.valid && keyVal.valid
+  const handoffSummary = form.handoff.trim() ? summarizeHandoff(form.handoff) : null
+
+  const runPreflight = async () => {
+    setPreflight({ testing: true })
+    const result = await quickTest(form.url, form.anonKey)
+    setPreflight({ testing: false, result })
+  }
+
   const save = () => {
-    if (!form.name.trim() || !form.url.trim() || !form.anonKey.trim()) return
-    const payload = { ...form, handoff: form.handoff.trim() || undefined }
+    if (!canSave) return
+    const payload = { ...form, url: normalizeSupabaseUrl(form.url), handoff: form.handoff.trim() || undefined }
     if (editing) updateSource(editing.id, payload)
     else { const s = addSource(payload); testConnection(s.id) }
     setOpen(false)
+    setPreflight({ testing: false })
   }
   const confirmAndDelete = () => {
     if (!confirmDelete) return
     removeSource(confirmDelete.id)
     setConfirmDelete(null)
   }
-  const handoffSummary = form.handoff.trim() ? summarizeHandoff(form.handoff) : null
 
   if (!isAdmin) {
     return (
@@ -300,13 +316,17 @@ export function SourcesPage() {
       {/* Add / Edit dialog */}
       <Dialog
         open={open}
-        onClose={() => setOpen(false)}
+        onClose={() => { setOpen(false); setPreflight({ testing: false }) }}
         title={editing ? 'Edit source' : 'Add data source'}
         description="Connect a Supabase project by URL and anon (public) key. Read-only — Boardroom will never write to your database."
+        size="lg"
         footer={
           <>
-            <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button variant="primary" onClick={save}>{editing ? 'Save changes' : 'Add source'}</Button>
+            <Button variant="ghost" onClick={() => { setOpen(false); setPreflight({ testing: false }) }}>Cancel</Button>
+            <Button variant="secondary" onClick={runPreflight} disabled={!urlVal.valid || !keyVal.valid || preflight.testing}>
+              <Zap className="h-3.5 w-3.5" /> {preflight.testing ? 'Testing…' : 'Test connection'}
+            </Button>
+            <Button variant="primary" onClick={save} disabled={!canSave}>{editing ? 'Save changes' : 'Add source'}</Button>
           </>
         }
       >
@@ -314,12 +334,70 @@ export function SourcesPage() {
           <Field label="Name">
             <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Production DB" />
           </Field>
+
+          {/* URL with validation */}
           <Field label="Supabase URL">
-            <Input value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })} placeholder="https://xxxx.supabase.co" className="font-data text-xs" />
+            <Input
+              value={form.url}
+              onChange={(e) => { setForm({ ...form, url: e.target.value }); setPreflight({ testing: false }) }}
+              placeholder="https://xxxx.supabase.co"
+              className={cn('font-data text-xs', urlVal.error && form.url.trim() && 'border-accent-red/60')}
+            />
+            {form.url.trim() && (
+              <div className="mt-1 text-[11px]">
+                {urlVal.valid ? (
+                  <span className="text-accent-green">
+                    ✓ {urlVal.ref ? `Project: ${urlVal.ref}` : 'Valid URL (custom/self-hosted)'}
+                  </span>
+                ) : (
+                  <span className="text-accent-red">{urlVal.error}</span>
+                )}
+              </div>
+            )}
           </Field>
+
+          {/* Anon key with validation */}
           <Field label="Anon key" hint="Stored only in your browser's localStorage.">
-            <Textarea value={form.anonKey} onChange={(e) => setForm({ ...form, anonKey: e.target.value })} placeholder="eyJhbGciOi…" rows={3} className="font-data text-xs" />
+            <Textarea
+              value={form.anonKey}
+              onChange={(e) => { setForm({ ...form, anonKey: e.target.value }); setPreflight({ testing: false }) }}
+              placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+              rows={3}
+              className={cn('font-data text-xs', keyVal.error && form.anonKey.trim() && 'border-accent-red/60')}
+            />
+            {form.anonKey.trim() && (
+              <div className="mt-1 text-[11px]">
+                {keyVal.valid ? (
+                  <span className="text-accent-green">
+                    ✓ {keyVal.isJwt ? 'JWT format' : 'Publishable key'}{keyVal.matchesProject ? ` · matches ${urlVal.ref}` : ''}
+                  </span>
+                ) : (
+                  <span className="text-accent-red">{keyVal.error}</span>
+                )}
+              </div>
+            )}
+            {urlVal.ref && (
+              <div className="mt-2 rounded-lg border border-border bg-bg-secondary/40 p-2 text-[11px] text-text-secondary">
+                📋 ไปที่ <span className="font-medium text-accent-blue">supabase.com/dashboard/project/{urlVal.ref}/settings/api</span> → copy <span className="font-medium">anon public</span> key
+              </div>
+            )}
           </Field>
+
+          {/* Preflight test result */}
+          {preflight.result && (
+            <div className={cn(
+              'rounded-lg border p-3 text-sm',
+              preflight.result.ok
+                ? 'border-accent-green/30 bg-accent-green/8 text-accent-green'
+                : 'border-accent-red/30 bg-accent-red/8 text-accent-red'
+            )}>
+              {preflight.result.ok ? (
+                <>✅ Connected! {preflight.result.latencyMs}ms · {preflight.result.tableCount ?? '?'} tables visible</>
+              ) : (
+                <>❌ {preflight.result.error}</>
+              )}
+            </div>
+          )}
           <Field label="Description">
             <Input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Customer-facing prod cluster" />
           </Field>
