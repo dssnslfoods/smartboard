@@ -2,6 +2,7 @@ import type { Dashboard, GridLayoutItem, WidgetConfig } from '@/types'
 import { DEMO_SOURCE_ID } from './demoData'
 import { SNAPSHOT_SOURCE_ID, SNAPSHOT_SOURCE_ID as SS } from './snapshotData'
 import { INVENTORY_SOURCE_ID } from './inventorySnapshot'
+import { SMARTCARE_SOURCE_ID } from './smartcareSnapshot'
 
 let counter = 0
 const wid = (s: string) => `w_${s}_${counter++}`
@@ -411,6 +412,34 @@ function buildGroupExecutive(): Template {
   return { template: 'group-exec', name: 'Group Executive (Cross-Source)', description: 'Sales (SmartSales) + Inventory combined — one board, two data sources.', widgets, layout }
 }
 
+function buildSmartcare(): Template {
+  const sc = (w: Omit<WidgetConfig, 'sourceId'>): WidgetConfig => ({ sourceId: SMARTCARE_SOURCE_ID, ...w })
+  const kTotal    = sc({ id: wid('kpi'), title: 'ข้อร้องเรียนทั้งหมด',  query: { table: 'sc_kpi', select: 'total_complaints', aggregation: 'sum' }, visualization: 'kpi', size: 'sm', mapping: { valueKey: 'total_complaints' } })
+  const kOpen     = sc({ id: wid('kpi'), title: 'เปิดอยู่',             query: { table: 'sc_kpi', select: 'open_complaints',  aggregation: 'sum' }, visualization: 'kpi', size: 'sm', mapping: { valueKey: 'open_complaints' } })
+  const kClosed   = sc({ id: wid('kpi'), title: 'ปิดแล้ว',              query: { table: 'sc_kpi', select: 'closed_complaints', aggregation: 'sum' }, visualization: 'kpi', size: 'sm', mapping: { valueKey: 'closed_complaints' } })
+  const kCat      = sc({ id: wid('kpi'), title: 'หมวดหมู่',             query: { table: 'sc_kpi', select: 'categories',        aggregation: 'sum' }, visualization: 'kpi', size: 'sm', mapping: { valueKey: 'categories' } })
+  const statusPie = sc({ id: wid('pie'), title: 'สถานะข้อร้องเรียน',     query: { table: 'sc_status', select: 'status,count' }, visualization: 'pie', size: 'md', mapping: { labelKey: 'status', valueKey: 'count' } })
+  const catBar    = sc({ id: wid('bar'), title: 'ตามหมวดหมู่',           query: { table: 'sc_category', select: 'category,count', orderBy: '-count' }, visualization: 'bar', size: 'md', mapping: { labelKey: 'category', valueKey: 'count' } })
+  const typeBar   = sc({ id: wid('bar'), title: 'ตามประเภทปัญหา',       query: { table: 'sc_problem_type', select: 'problem_type,count', orderBy: '-count' }, visualization: 'bar', size: 'lg', mapping: { labelKey: 'problem_type', valueKey: 'count' } })
+  const rootPie   = sc({ id: wid('pie'), title: 'Root Cause (5M1E)',    query: { table: 'sc_root_cause', select: 'root_cause,count' }, visualization: 'pie', size: 'md', mapping: { labelKey: 'root_cause', valueKey: 'count' } })
+  const branchBar = sc({ id: wid('bar'), title: 'ตามสาขา',              query: { table: 'sc_branch', select: 'branch,count', orderBy: '-count' }, visualization: 'bar', size: 'md', mapping: { labelKey: 'branch', valueKey: 'count' } })
+  const pgTable   = sc({ id: wid('table'), title: 'ตามกลุ่มสินค้า',     query: { table: 'sc_product_group', select: 'product_group,count', orderBy: '-count' }, visualization: 'table', size: 'lg' })
+  const widgets: WidgetConfig[] = [kTotal, kOpen, kClosed, kCat, statusPie, catBar, typeBar, rootPie, branchBar, pgTable]
+  const layout: GridLayoutItem[] = [
+    { i: kTotal.id,    x: 0, y: 0,  w: 3, h: 3 },
+    { i: kOpen.id,     x: 3, y: 0,  w: 3, h: 3 },
+    { i: kClosed.id,   x: 6, y: 0,  w: 3, h: 3 },
+    { i: kCat.id,      x: 9, y: 0,  w: 3, h: 3 },
+    { i: statusPie.id, x: 0, y: 3,  w: 4, h: 7 },
+    { i: catBar.id,    x: 4, y: 3,  w: 4, h: 7 },
+    { i: rootPie.id,   x: 8, y: 3,  w: 4, h: 7 },
+    { i: typeBar.id,   x: 0, y: 10, w: 8, h: 7 },
+    { i: branchBar.id, x: 8, y: 10, w: 4, h: 7 },
+    { i: pgTable.id,   x: 0, y: 17, w: 12, h: 8 },
+  ]
+  return { template: 'smartcare', name: 'Smartcare Complaints', description: 'ข้อร้องเรียนลูกค้า — สถานะ, หมวดหมู่, Root Cause, สาขา (snapshot 2026-05-30).', widgets, layout }
+}
+
 export const TEMPLATES = [
   { id: 'smartsales', name: 'SmartSales Executive', build: buildSmartSales },
   { id: 'executive', name: 'Executive Overview', build: buildExecutive },
@@ -419,6 +448,7 @@ export const TEMPLATES = [
   { id: 'finance', name: 'Finance', build: buildFinance },
   { id: 'inventory', name: 'Inventory Overview', build: buildInventory },
   { id: 'group-exec', name: 'Group Executive (Cross-Source)', build: buildGroupExecutive },
+  { id: 'smartcare', name: 'Smartcare Complaints', build: buildSmartcare },
 ] as const
 
 /** Seed the initial dashboard set (used on first load / when storage empty). */

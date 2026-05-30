@@ -16,7 +16,7 @@ function load(): Dashboard[] {
       // Seed any missing canonical dashboards (SmartSales, Inventory, Group Exec)
       // and remove old Report-Gallery-created inventory dashboards that have
       // auto-generated titles (not from the template).
-      const SEED_IDS = ['dash_smartsales', 'dash_inventory', 'dash_group-exec']
+      const SEED_IDS = ['dash_smartsales', 'dash_inventory', 'dash_group-exec', 'dash_smartcare']
       const allSeeded = seedDashboards()
       const missing = allSeeded.filter((d) => !haveIds.has(d.id) && SEED_IDS.includes(d.id))
       // Drop Gallery-created dashboards that use inventory-snapshot but aren't the

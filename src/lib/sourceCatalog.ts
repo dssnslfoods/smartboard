@@ -8,6 +8,7 @@ import type {
 import { DEMO_SOURCE_ID, DEMO_TABLES } from './demoData'
 import { SNAPSHOT_SOURCE_ID, SNAPSHOT_TABLES } from './snapshotData'
 import { INVENTORY_CATALOG, INVENTORY_SOURCE_ID, INVENTORY_TABLES } from './inventorySnapshot'
+import { SMARTCARE_CATALOG, SMARTCARE_SOURCE_ID } from './smartcareSnapshot'
 void INVENTORY_TABLES // referenced by snapshotData.ts
 import { parseHandoff, inferRole } from './handoff'
 import { useDataSourceStore } from '@/stores/dataSourceStore'
@@ -43,6 +44,7 @@ export function getCatalog(sourceId: string): SourceCatalog {
   if (sourceId === DEMO_SOURCE_ID) return { sourceId, tables: DEMO_CATALOG, origin: 'builtin' }
   if (sourceId === SNAPSHOT_SOURCE_ID) return { sourceId, tables: SNAPSHOT_CATALOG, origin: 'builtin' }
   if (sourceId === INVENTORY_SOURCE_ID) return { sourceId, tables: INVENTORY_CATALOG, origin: 'builtin' }
+  if (sourceId === SMARTCARE_SOURCE_ID) return { sourceId, tables: SMARTCARE_CATALOG, origin: 'builtin' }
 
   // user source — parse its uploaded handoff if any
   const src = useDataSourceStore.getState().sources.find((s) => s.id === sourceId)
