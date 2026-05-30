@@ -13,8 +13,20 @@ function load(): Dashboard[] {
       // Migration: ensure newly-shipped seed dashboards (e.g. the real-data
       // SmartSales report) are present for users who already have storage.
       const haveIds = new Set(stored.map((d) => d.id))
-      const missing = seedDashboards().filter((d) => !haveIds.has(d.id) && d.id === 'dash_smartsales')
-      return missing.length ? [...missing, ...stored] : stored
+      // Seed any missing canonical dashboards (SmartSales, Inventory, Group Exec)
+      // and remove old Report-Gallery-created inventory dashboards that have
+      // auto-generated titles (not from the template).
+      const SEED_IDS = ['dash_smartsales', 'dash_inventory', 'dash_group-exec']
+      const allSeeded = seedDashboards()
+      const missing = allSeeded.filter((d) => !haveIds.has(d.id) && SEED_IDS.includes(d.id))
+      // Drop Gallery-created dashboards that use inventory-snapshot but aren't the
+      // canonical template (their ids won't match dash_inventory / dash_group-exec).
+      const cleaned = stored.filter((d) => {
+        const usesInv = d.widgets?.some((w) => w.sourceId === 'inventory-snapshot')
+        if (!usesInv) return true
+        return SEED_IDS.includes(d.id) // keep canonical ones, drop Gallery copies
+      })
+      return [...missing, ...cleaned]
     }
   } catch {
     /* noop */
