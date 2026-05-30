@@ -22,12 +22,109 @@ import {
   YEARS,
 } from '@/lib/intelligenceData'
 import { SmartSalesLayout, YearMonthFilter } from '@/components/smartsales/SmartSalesLayout'
+import { InfoTooltip } from '@/components/ui/InfoTooltip'
 
 const baht = (n: number, dec = 2) =>
   `฿ ${Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: dec, maximumFractionDigits: dec })}`
 const bahtSigned = (n: number, dec = 2) => `${n < 0 ? '-' : ''}${baht(n, dec)}`
 const compact = (n: number) =>
   '฿' + (Math.abs(n) >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : (n / 1e3).toFixed(0) + 'K')
+
+// ── Tooltip content library ──────────────────────────────────────────────────
+const TT = {
+  revenue: [
+    'ยอดขายรวม (Invoice) ในช่วงเวลาที่เลือก',
+    'คำนวณจากมูลค่า Invoice ทั้งหมดที่ออกในปีนั้น',
+    '📌 ใช้วัดขนาดธุรกิจโดยรวม และเปรียบเทียบกับเป้าหมายประจำปี',
+  ],
+  yoy: [
+    'ผลต่างยอดขายเทียบกับช่วงเดียวกันของปีก่อน (Year-over-Year)',
+    'ค่าติดลบ = ยอดขายลดลง | ค่าบวก = ยอดขายเติบโต',
+    '📌 ใช้ประเมินทิศทางการเติบโตของธุรกิจ',
+  ],
+  avg: [
+    'มูลค่า Invoice เฉลี่ยต่อใบในช่วงเวลาที่เลือก',
+    'สูงขึ้น = ดีลมีขนาดใหญ่ขึ้น | ต่ำลง = ดีลเล็กลงหรือจำนวน Invoice มากขึ้น',
+    '📌 ใช้ประเมินคุณภาพและขนาดของคำสั่งซื้อ',
+  ],
+  domestic: [
+    'ผลต่างยอดขายลูกค้าในประเทศ (ไทย) เทียบกับช่วงเดียวกันปีก่อน',
+    '📌 ค่าติดลบมากบ่งชี้ว่าตลาดในประเทศหดตัว ควรทบทวนกลยุทธ์การขาย',
+  ],
+  overseas: [
+    'ผลต่างยอดขายลูกค้าต่างประเทศ เทียบกับช่วงเดียวกันปีก่อน',
+    '📌 ค่าติดลบมากบ่งชี้ว่าตลาดส่งออกหดตัว อาจเกิดจาก demand ลดลงหรือการแข่งขันสูงขึ้น',
+  ],
+  trend: [
+    'กราฟแท่งแสดงยอดขายรายเดือนตลอดปีที่เลือก',
+    'เส้นประสีส้ม = ค่าเฉลี่ยต่อเดือน',
+    'แท่งสีน้ำเงินเข้ม = เดือนที่ยอดขายสูงสุด | สีเหลือง = เดือนที่เลือก',
+    '📌 ใช้ระบุ seasonality และวางแผนสต๊อก/กำลังการผลิต',
+  ],
+  segment: [
+    'แบ่งกลุ่มลูกค้าตามพฤติกรรมการซื้อด้วย RFM Model',
+    '🏆 Champions – ซื้อล่าสุด บ่อย และมูลค่าสูง: ลูกค้าVIP',
+    '💛 Loyal – ลูกค้าประจำ ซื้อสม่ำเสมอ',
+    '🔵 At Risk – เคยดีแต่เริ่มซื้อน้อยลง ต้องรีบ re-engage',
+    '🟣 New – เพิ่งเป็นลูกค้าใหม่ ต้องดูแลให้กลายเป็น Loyal',
+    '⚪ Hibernating – ไม่มีการซื้อนานแล้ว ยากจะดึงกลับ',
+    '📌 ใช้วางแผน retention และ marketing แบบ targeted',
+  ],
+  mix: [
+    'สัดส่วนรายได้ระหว่างลูกค้าในประเทศ vs ต่างประเทศ',
+    '📌 ความเสี่ยงสูงหากพึ่งพาตลาดใดตลาดหนึ่งมากเกิน 80%',
+    'ใช้วางแผนกระจายตลาดเพื่อลดความเสี่ยง',
+  ],
+  countries: [
+    '5 ประเทศที่สร้างรายได้สูงสุดในช่วงเวลาที่เลือก',
+    '📌 ใช้ระบุตลาดส่งออกหลักและวางแผนทรัพยากรทีมขาย',
+    'ประเทศที่ % สูงควรได้รับการดูแลพิเศษเพื่อรักษา relationship',
+  ],
+  products: [
+    'สินค้าที่สร้างรายได้สูงสุดในช่วงเวลาที่เลือก',
+    '📌 ใช้วางแผนการผลิต จัดสรร stock และ prioritize คำสั่งซื้อ',
+    'สินค้า Top 1-3 ควรมี safety stock เพียงพอเสมอ',
+  ],
+  arOutstanding: [
+    'ยอดลูกหนี้การค้าทั้งหมดที่ยังไม่ได้รับชำระ',
+    '= มูลค่า Invoice ที่ออกแล้วแต่ยังไม่ได้รับเงิน (ทั้งที่ยังไม่ถึงกำหนดและเกินกำหนด)',
+    '📌 ยิ่งสูงยิ่งต้องใช้ Working Capital มากขึ้น',
+  ],
+  arOverdue: [
+    'ยอดลูกหนี้ที่เลยกำหนดชำระแล้ว — ความเสี่ยงสูง',
+    '📌 ควรติดตามเร่งด่วน โดยเฉพาะยอดที่เกิน 30 วัน',
+    'หากมี Bad Debt สูงจะกระทบ Profit โดยตรง',
+  ],
+  dso: [
+    'Days Sales Outstanding = จำนวนวันเฉลี่ยตั้งแต่ออก Invoice จนได้รับเงิน',
+    'ยิ่งน้อยยิ่งดี: เก็บเงินได้เร็ว Cash Flow แข็งแกร่ง',
+    '📌 DSO สูง = ลูกค้าจ่ายช้า ต้องทบทวนเงื่อนไขเครดิต',
+    'เป้าหมายอุตสาหกรรมอาหารส่งออก: 30–60 วัน',
+  ],
+  collection: [
+    'อัตราการเก็บเงินสำเร็จ = (ยอดรับชำระ ÷ ยอด Invoice) × 100',
+    '📌 ค่า > 95% = ดีมาก | 90-95% = พอใช้ | < 90% = น่ากังวล',
+    'ค่าต่ำอาจหมายถึงมี Bad Debt หรือเงื่อนไขเครดิตหลวมเกิน',
+  ],
+  aging: [
+    'วิเคราะห์อายุของยอดลูกหนี้ที่ยังค้างชำระ',
+    'Not Due – ยังไม่ถึงกำหนด (ปกติ)',
+    '1-30 วัน – เกินกำหนดเล็กน้อย ควรส่ง reminder',
+    '31-60 วัน – ควรโทรติดตามโดยตรง',
+    '60+ วัน – ความเสี่ยงสูง พิจารณาหยุดเครดิต',
+    '📌 ยิ่งมี % ใน bucket สูงยิ่งต้องระวัง Bad Debt',
+  ],
+  overdue: [
+    'รายชื่อลูกค้าที่มียอดเกินกำหนดชำระสูงสุด',
+    'WATCHING = ต้องจับตา | NORMAL = ยังในเกณฑ์ปกติ',
+    '📌 Prioritize ติดตามตามมูลค่า — ลูกค้าอันดับ 1-3 มีผลกระทบมากที่สุด',
+  ],
+  paid: [
+    'ลูกค้าที่มีการชำระเงินล่าสุด เรียงตามวันที่รับชำระ',
+    '📌 ใช้ติดตาม Cash Flow รายวัน/สัปดาห์',
+    'ลูกค้าที่จ่ายบ่อย (payments สูง) = ลูกค้า Active ที่มีความสัมพันธ์ดี',
+  ],
+}
 
 function Sparkline({ down }: { down: boolean }) {
   const data = down
@@ -42,16 +139,23 @@ function Sparkline({ down }: { down: boolean }) {
   )
 }
 
-function KpiCard({ label, sub, value, pct }: { label: string; sub: string; value: string; pct: number }) {
+function KpiCard({
+  label, sub, value, pct, tooltip,
+}: {
+  label: string; sub: string; value: string; pct: number; tooltip: string[]
+}) {
   const down = pct < 0
   return (
     <div className="rounded-2xl border border-red-200 bg-white p-5 shadow-sm ring-1 ring-red-100/50">
-      <div className="flex items-start justify-between">
-        <div>
-          <div className="text-[11px] font-bold uppercase tracking-wide text-slate-700">{label}</div>
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <div className="flex items-center gap-1.5">
+            <span className="text-[11px] font-bold uppercase tracking-wide text-slate-700">{label}</span>
+            <InfoTooltip content={tooltip} side="bottom" width="lg" />
+          </div>
           <div className="text-[10px] text-slate-400">{sub}</div>
         </div>
-        <span className={`flex items-center gap-0.5 text-[11px] font-bold ${down ? 'text-red-500' : 'text-emerald-500'}`}>
+        <span className={`flex shrink-0 items-center gap-0.5 text-[11px] font-bold ${down ? 'text-red-500' : 'text-emerald-500'}`}>
           {down ? <TrendingDown className="h-3 w-3" /> : <TrendingUp className="h-3 w-3" />}
           {Math.abs(pct).toFixed(1)}%
         </span>
@@ -69,21 +173,46 @@ function KpiCard({ label, sub, value, pct }: { label: string; sub: string; value
   )
 }
 
-function Card({ title, sub, icon: Icon, iconBg, children }: { title: string; sub?: string; icon?: typeof Wallet; iconBg?: string; children: React.ReactNode }) {
+function SectionCard({
+  title, sub, tooltip, tooltipSide = 'bottom', icon: Icon, iconBg, children,
+}: {
+  title: string; sub?: string; tooltip: string[]; tooltipSide?: 'top' | 'bottom' | 'left' | 'right'
+  icon?: typeof Wallet; iconBg?: string; children: React.ReactNode
+}) {
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="mb-4 flex items-center gap-2">
+      <div className="mb-4 flex items-start gap-2">
         {Icon && (
-          <span className="flex h-7 w-7 items-center justify-center rounded-lg text-white" style={{ background: iconBg }}>
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-white" style={{ background: iconBg }}>
             <Icon className="h-4 w-4" />
           </span>
         )}
-        <div>
-          <div className="text-sm font-extrabold uppercase tracking-wide text-slate-800">{title}</div>
+        <div className="flex-1">
+          <div className="flex items-center gap-1.5">
+            <span className="text-sm font-extrabold uppercase tracking-wide text-slate-800">{title}</span>
+            <InfoTooltip content={tooltip} side={tooltipSide} width="lg" />
+          </div>
           {sub && <div className="text-[10px] uppercase tracking-wide text-slate-400">{sub}</div>}
         </div>
       </div>
       {children}
+    </div>
+  )
+}
+
+function ArStatCard({
+  label, th, value, tone, bg, tooltip,
+}: {
+  label: string; th: string; value: string; tone: string; bg: string; tooltip: string[]
+}) {
+  return (
+    <div className={`rounded-xl border border-slate-100 ${bg} p-4`}>
+      <div className="flex items-center gap-1">
+        <span className="text-[10px] font-bold uppercase tracking-wide text-slate-500">{label}</span>
+        <InfoTooltip content={tooltip} side="top" width="lg" />
+      </div>
+      <div className={`mt-1 font-mono text-lg font-bold ${tone}`}>{value}</div>
+      <div className="text-[9px] text-slate-400">{th}</div>
     </div>
   )
 }
@@ -113,22 +242,13 @@ export function IntelligencePage() {
           </div>
           <div>
             <h1 className="text-3xl font-black leading-none tracking-tight text-slate-800">
-              INTELLIGENCE
-              <br />
-              DASHBOARD
+              INTELLIGENCE<br />DASHBOARD
             </h1>
             <p className="mt-1 text-xs text-slate-400">บริหารจัดการการขายอัจฉริยะ · ADMIN</p>
           </div>
         </div>
         <div className="flex flex-col items-end gap-2">
-          <YearMonthFilter
-            year={year}
-            month={month}
-            onYear={setYear}
-            onMonth={setMonth}
-            years={YEARS}
-            monthNames={MONTH_NAMES}
-          />
+          <YearMonthFilter year={year} month={month} onYear={setYear} onMonth={setMonth} years={YEARS} monthNames={MONTH_NAMES} />
           <button className="flex items-center gap-1.5 rounded-lg bg-slate-100 px-3 py-1.5 text-[11px] font-bold text-slate-600">
             <Tv className="h-3.5 w-3.5" /> TV MODE
           </button>
@@ -137,21 +257,21 @@ export function IntelligencePage() {
 
       {/* KPI row 1 */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <KpiCard label={`Revenue ${year}`} sub={`ยอดขาย (${periodLabel})`} value={baht(k.revenue)} pct={k.revPct} />
-        <KpiCard label="Revenue YoY Diff" sub="เทียบช่วงเดียวกันปีก่อน (YoY)" value={bahtSigned(k.yoyDiff)} pct={k.yoyPct} />
-        <KpiCard label="Average Revenue" sub="ค่าเฉลี่ยต่อบิล" value={baht(k.avg)} pct={k.avgPct} />
+        <KpiCard label={`Revenue ${year}`} sub={`ยอดขาย (${periodLabel})`} value={baht(k.revenue)} pct={k.revPct} tooltip={TT.revenue} />
+        <KpiCard label="Revenue YoY Diff" sub="เทียบช่วงเดียวกันปีก่อน (YoY)" value={bahtSigned(k.yoyDiff)} pct={k.yoyPct} tooltip={TT.yoy} />
+        <KpiCard label="Average Revenue" sub="ค่าเฉลี่ยต่อบิล" value={baht(k.avg)} pct={k.avgPct} tooltip={TT.avg} />
       </div>
 
       {/* KPI row 2 */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <KpiCard label="Domestic MoM" sub="ส่วนต่างลูกค้าในประเทศ" value={bahtSigned(k.domestic)} pct={k.domesticPct} />
-        <KpiCard label="Overseas MoM" sub="ส่วนต่างลูกค้าต่างประเทศ" value={bahtSigned(k.overseas)} pct={k.overseasPct} />
+        <KpiCard label="Domestic MoM" sub="ส่วนต่างลูกค้าในประเทศ" value={bahtSigned(k.domestic)} pct={k.domesticPct} tooltip={TT.domestic} />
+        <KpiCard label="Overseas MoM" sub="ส่วนต่างลูกค้าต่างประเทศ" value={bahtSigned(k.overseas)} pct={k.overseasPct} tooltip={TT.overseas} />
         <div />
       </div>
 
-      {/* Revenue trend + segment velocity */}
+      {/* Revenue Trend + Segment Velocity */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.6fr_1fr]">
-        <Card title={`Revenue Trend (${year})`} sub="Monthly sales for current selected year">
+        <SectionCard title={`Revenue Trend (${year})`} sub="Monthly sales for current selected year" tooltip={TT.trend}>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart data={view.trend} margin={{ top: 10, right: 8, left: 0, bottom: 0 }}>
@@ -169,17 +289,15 @@ export function IntelligencePage() {
               </ComposedChart>
             </ResponsiveContainer>
           </div>
-        </Card>
+        </SectionCard>
 
-        <Card title="Segment Velocity" sub="% of customers by RFM group">
+        <SectionCard title="Segment Velocity" sub="% of customers by RFM group" tooltip={TT.segment} tooltipSide="left">
           <div className="flex items-center gap-4">
             <div className="h-44 w-44 shrink-0">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie data={SEGMENTS} dataKey="value" innerRadius="62%" outerRadius="92%" paddingAngle={2} stroke="none">
-                    {SEGMENTS.map((s, i) => (
-                      <Cell key={i} fill={s.color} />
-                    ))}
+                    {SEGMENTS.map((s, i) => <Cell key={i} fill={s.color} />)}
                   </Pie>
                   <Tooltip formatter={(v: number) => `${v}%`} contentStyle={{ borderRadius: 12, fontSize: 12 }} />
                 </PieChart>
@@ -195,19 +313,22 @@ export function IntelligencePage() {
               ))}
             </div>
           </div>
-        </Card>
+        </SectionCard>
       </div>
 
-      {/* Product mix */}
-      <Card title="Product Mix" sub="Revenue contribution by category · Top countries · Top products">
+      {/* Product Mix */}
+      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="mb-4 flex items-center gap-1.5">
+          <span className="text-sm font-extrabold uppercase tracking-wide text-slate-800">Product Mix</span>
+          <InfoTooltip content={TT.mix} side="bottom" width="lg" />
+          <span className="ml-1 text-[10px] uppercase tracking-wide text-slate-400">Revenue contribution by category · Top countries · Top products</span>
+        </div>
         <div className="grid grid-cols-1 items-center gap-6 lg:grid-cols-[1fr_1.2fr_1.2fr]">
           <div className="relative h-48">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie data={view.mix} dataKey="value" innerRadius="55%" outerRadius="85%" paddingAngle={2} stroke="none">
-                  {view.mix.map((s, i) => (
-                    <Cell key={i} fill={s.color} />
-                  ))}
+                  {view.mix.map((s, i) => <Cell key={i} fill={s.color} />)}
                 </Pie>
                 <Tooltip formatter={(v: number) => `${v}%`} contentStyle={{ borderRadius: 12, fontSize: 12 }} />
               </PieChart>
@@ -223,7 +344,10 @@ export function IntelligencePage() {
           </div>
 
           <div>
-            <div className="mb-2 text-[11px] font-bold uppercase tracking-wide text-slate-500">🌐 Top Countries</div>
+            <div className="mb-2 flex items-center gap-1">
+              <span className="text-[11px] font-bold uppercase tracking-wide text-slate-500">🌐 Top Countries</span>
+              <InfoTooltip content={TT.countries} side="top" width="lg" />
+            </div>
             <div className="space-y-3">
               {view.countries.map((c) => (
                 <div key={c.country}>
@@ -241,7 +365,10 @@ export function IntelligencePage() {
           </div>
 
           <div>
-            <div className="mb-2 text-[11px] font-bold uppercase tracking-wide text-slate-500">📦 Top Products</div>
+            <div className="mb-2 flex items-center gap-1">
+              <span className="text-[11px] font-bold uppercase tracking-wide text-slate-500">📦 Top Products</span>
+              <InfoTooltip content={TT.products} side="top" width="lg" />
+            </div>
             <div className="space-y-3">
               {view.products.map((p) => (
                 <div key={p.item}>
@@ -258,36 +385,31 @@ export function IntelligencePage() {
             </div>
           </div>
         </div>
-      </Card>
+      </div>
 
-      {/* AR & Payment */}
-      <Card title="AR & Payment Analysis" sub="Accounts receivable · Collection · Risk" icon={Wallet} iconBg="#EF4444">
+      {/* AR & Payment Analysis */}
+      <SectionCard title="AR & Payment Analysis" sub="Accounts receivable · Collection · Risk" tooltip={TT.arOutstanding} icon={Wallet} iconBg="#EF4444">
+        {/* AR stat cards */}
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          {[
-            { label: 'Outstanding AR', th: 'ยอดค้างรับ', value: baht(AR.outstanding), tone: 'text-slate-800', bg: 'bg-amber-50' },
-            { label: 'Overdue AR', th: 'ยอดเกินกำหนด', value: baht(AR.overdue), tone: 'text-red-600', bg: 'bg-red-50' },
-            { label: 'Avg DSO', th: 'ระยะเวลาเก็บเงินเฉลี่ย', value: `${AR.avgDso} Days`, tone: 'text-slate-800', bg: 'bg-slate-50' },
-            { label: 'Collection Rate', th: 'อัตราการเก็บเงิน', value: `${AR.collectionRate.toFixed(1)}%`, tone: 'text-emerald-600', bg: 'bg-emerald-50' },
-          ].map((s) => (
-            <div key={s.label} className={`rounded-xl border border-slate-100 ${s.bg} p-4`}>
-              <div className="text-[10px] font-bold uppercase tracking-wide text-slate-500">{s.label}</div>
-              <div className={`mt-1 font-mono text-lg font-bold ${s.tone}`}>{s.value}</div>
-              <div className="text-[9px] text-slate-400">{s.th}</div>
-            </div>
-          ))}
+          <ArStatCard label="Outstanding AR" th="ยอดค้างรับ" value={baht(AR.outstanding)} tone="text-slate-800" bg="bg-amber-50" tooltip={TT.arOutstanding} />
+          <ArStatCard label="Overdue AR" th="ยอดเกินกำหนด" value={baht(AR.overdue)} tone="text-red-600" bg="bg-red-50" tooltip={TT.arOverdue} />
+          <ArStatCard label="Avg DSO" th="ระยะเวลาเก็บเงินเฉลี่ย" value={`${AR.avgDso} Days`} tone="text-slate-800" bg="bg-slate-50" tooltip={TT.dso} />
+          <ArStatCard label="Collection Rate" th="อัตราการเก็บเงิน" value={`${AR.collectionRate.toFixed(1)}%`} tone="text-emerald-600" bg="bg-emerald-50" tooltip={TT.collection} />
         </div>
 
         <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
+          {/* AR Aging */}
           <div>
-            <div className="mb-2 text-[11px] font-bold uppercase tracking-wide text-slate-500">AR Aging Breakdown</div>
+            <div className="mb-2 flex items-center gap-1">
+              <span className="text-[11px] font-bold uppercase tracking-wide text-slate-500">AR Aging Breakdown</span>
+              <InfoTooltip content={TT.aging} side="top" width="lg" />
+            </div>
             <div className="flex items-center gap-4">
               <div className="h-44 w-44 shrink-0">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie data={AR_AGING} dataKey="amount" innerRadius="60%" outerRadius="92%" paddingAngle={2} stroke="none">
-                      {AR_AGING.map((s, i) => (
-                        <Cell key={i} fill={s.color} />
-                      ))}
+                      {AR_AGING.map((s, i) => <Cell key={i} fill={s.color} />)}
                     </Pie>
                     <Tooltip formatter={(v: number) => baht(v)} contentStyle={{ borderRadius: 12, fontSize: 12 }} />
                   </PieChart>
@@ -311,14 +433,16 @@ export function IntelligencePage() {
             </div>
           </div>
 
+          {/* Top Overdue */}
           <div>
-            <div className="mb-2 text-[11px] font-bold uppercase tracking-wide text-slate-500">Top Overdue Accounts</div>
+            <div className="mb-2 flex items-center gap-1">
+              <span className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Top Overdue Accounts</span>
+              <InfoTooltip content={TT.overdue} side="top" width="lg" />
+            </div>
             <div className="space-y-2">
               {TOP_OVERDUE.map((o) => (
                 <div key={o.rank} className="flex items-center gap-3 rounded-lg border border-slate-100 px-3 py-2">
-                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[10px] font-bold text-slate-500">
-                    {o.rank}
-                  </span>
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[10px] font-bold text-slate-500">{o.rank}</span>
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-xs font-bold text-slate-700">{o.customer}</div>
                     <div className="text-[10px] text-slate-400">{o.code}</div>
@@ -335,10 +459,17 @@ export function IntelligencePage() {
             </div>
           </div>
         </div>
-      </Card>
+      </SectionCard>
 
-      {/* Customers paid */}
-      <Card title="Customers Paid" sub={`Top customers with recent payments (${periodLabel})`}>
+      {/* Customers Paid */}
+      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="mb-4 flex items-center gap-1.5">
+          <span className="text-sm font-extrabold uppercase tracking-wide text-slate-800">Customers Paid</span>
+          <InfoTooltip content={TT.paid} side="bottom" width="lg" />
+          <span className="ml-1 text-[10px] uppercase tracking-wide text-slate-400">
+            Top customers with recent payments ({periodLabel})
+          </span>
+        </div>
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
@@ -348,9 +479,7 @@ export function IntelligencePage() {
         <div className="space-y-2">
           {filteredPaid.map((c, i) => (
             <div key={c.name} className="flex items-center gap-3 rounded-xl border border-slate-100 px-4 py-3 hover:bg-slate-50">
-              <span className="flex h-7 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-[10px] font-bold text-slate-500">
-                #{i + 1}
-              </span>
+              <span className="flex h-7 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-[10px] font-bold text-slate-500">#{i + 1}</span>
               <div className="min-w-0 flex-1">
                 <div className="truncate text-sm font-bold text-slate-700">{c.name}</div>
                 <div className="text-[10px] text-slate-400">Last payment: {c.last}</div>
@@ -363,7 +492,7 @@ export function IntelligencePage() {
           ))}
           {!filteredPaid.length && <div className="py-6 text-center text-sm text-slate-400">No customers found.</div>}
         </div>
-      </Card>
+      </div>
     </SmartSalesLayout>
   )
 }
