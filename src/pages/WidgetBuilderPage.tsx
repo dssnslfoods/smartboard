@@ -24,7 +24,9 @@ import type {
 import { useDataSourceStore } from '@/stores/dataSourceStore'
 import { useDashboardStore } from '@/stores/dashboardStore'
 import { useSettingsStore } from '@/stores/settingsStore'
-import { DEMO_SOURCE_ID, DEMO_TABLES } from '@/lib/demoData'
+import { DEMO_SOURCE_ID } from '@/lib/demoData'
+import { SNAPSHOT_META } from '@/lib/snapshotData'
+import { getCatalog } from '@/lib/sourceCatalog'
 import { toSQL } from '@/lib/queryEngine'
 import { uid } from '@/lib/utils'
 import { PageHeader } from '@/components/layout/PageHeader'
@@ -134,10 +136,14 @@ export function WidgetBuilderPage() {
 
   const sql = useMemo(() => toSQL(config.query), [config.query])
 
-  const tableOptions =
-    st.sourceId === DEMO_SOURCE_ID
-      ? DEMO_TABLES.map((t) => ({ value: t, label: t }))
-      : []
+  // Catalog-driven: tables + columns the system knows for the selected source
+  const catalog = useMemo(() => getCatalog(st.sourceId), [st.sourceId])
+  const tableOptions = catalog.tables.map((t) => ({ value: t.name, label: t.name }))
+  const activeTable = catalog.tables.find((t) => t.name === st.table)
+  const columnMeta = activeTable?.columns ?? []
+  const metricCols = columnMeta.filter((c) => c.role === 'metric')
+  const dimCols = columnMeta.filter((c) => c.role === 'dimension')
+  const dateCols = columnMeta.filter((c) => c.role === 'date')
 
   const addFilter = () =>
     set('filters', [...st.filters, { column: '', operator: 'eq', value: '' }])
@@ -185,29 +191,80 @@ export function WidgetBuilderPage() {
         {/* Config panel */}
         <div className="card space-y-5 p-5">
           {step === 1 && (
-            <Field label="Data source">
-              <Select
-                value={st.sourceId}
-                onChange={(e) => set('sourceId', e.target.value)}
-                options={[
-                  { value: DEMO_SOURCE_ID, label: 'Demo data' },
-                  ...sources.map((s) => ({ value: s.id, label: s.name })),
-                ]}
-              />
-            </Field>
+            <div className="space-y-3">
+              <Field label="Data source">
+                <Select
+                  value={st.sourceId}
+                  onChange={(e) => { set('sourceId', e.target.value); set('table', ''); set('select', '') }}
+                  options={[
+                    { value: SNAPSHOT_META.id, label: SNAPSHOT_META.name },
+                    { value: DEMO_SOURCE_ID, label: 'Demo data' },
+                    ...sources.map((s) => ({ value: s.id, label: s.name })),
+                  ]}
+                />
+              </Field>
+              <div className="rounded-lg border border-border bg-bg-secondary/40 p-3 text-xs">
+                {catalog.tables.length ? (
+                  <span className="text-accent-green">
+                    ✓ ระบบรู้จัก schema นี้ ({catalog.origin === 'handoff' ? 'handoff.md' : 'built-in'}) —
+                    {' '}{catalog.tables.length} tables, เลือก table/column ได้จาก dropdown
+                  </span>
+                ) : (
+                  <span className="text-accent-amber">
+                    ⚠ ไม่มี schema สำหรับ source นี้ — อัปโหลด handoff.md ที่หน้า Sources เพื่อให้เลือก table/column ได้ถูกต้อง
+                    (ระหว่างนี้พิมพ์ชื่อ table/column เองได้)
+                  </span>
+                )}
+              </div>
+            </div>
           )}
 
           {step === 2 && (
             <div className="space-y-4">
-              <Field label="Table / view" hint={st.sourceId === DEMO_SOURCE_ID ? 'Demo tables available below.' : 'Type the table name exposed via PostgREST.'}>
+              <Field label="Table / view" hint={tableOptions.length ? 'เลือกจาก schema ที่ระบบรู้จัก' : 'Type the table name exposed via PostgREST.'}>
                 {tableOptions.length ? (
-                  <Select value={st.table} onChange={(e) => set('table', e.target.value)} options={tableOptions} />
+                  <Select value={st.table} onChange={(e) => set('table', e.target.value)} placeholder="Select a table" options={tableOptions} />
                 ) : (
                   <Input value={st.table} onChange={(e) => set('table', e.target.value)} placeholder="public_table" />
                 )}
               </Field>
+
+              {/* Column picker chips when catalog known */}
+              {columnMeta.length > 0 && (
+                <div>
+                  <div className="mb-1.5 text-xs font-medium text-text-secondary">Columns (คลิกเพื่อเพิ่ม)</div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {columnMeta.map((col) => {
+                      const sel = st.select.split(',').map((s) => s.trim()).includes(col.name)
+                      const tone = col.role === 'metric' ? 'text-accent-green border-accent-green/30'
+                        : col.role === 'date' ? 'text-accent-blue border-accent-blue/30'
+                        : col.role === 'dimension' ? 'text-accent-purple border-accent-purple/30'
+                        : 'text-text-secondary border-border'
+                      return (
+                        <button
+                          key={col.name}
+                          onClick={() => {
+                            const cur = st.select.split(',').map((s) => s.trim()).filter(Boolean)
+                            const next = sel ? cur.filter((x) => x !== col.name) : [...cur, col.name]
+                            set('select', next.join(','))
+                          }}
+                          className={cn(
+                            'rounded-md border px-2 py-0.5 text-[11px] font-data transition-colors',
+                            sel ? 'bg-accent-blue/15 border-accent-blue/40 text-accent-blue' : `bg-bg-secondary ${tone} hover:bg-bg-card`
+                          )}
+                          title={col.role}
+                        >
+                          {col.name}
+                          <span className="ml-1 opacity-50">{col.role[0]}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
               <Field label="Select columns" hint="Comma-separated, or * for all.">
-                <Input value={st.select} onChange={(e) => set('select', e.target.value)} className="font-data text-xs" />
+                <Input value={st.select} onChange={(e) => set('select', e.target.value)} className="font-data text-xs" placeholder="col1,col2" />
               </Field>
             </div>
           )}

@@ -1,5 +1,6 @@
-import { useState } from 'react'
-import { Activity, Database, Pencil, Plus, Trash2, Zap } from 'lucide-react'
+import { useRef, useState } from 'react'
+import { Activity, Database, FileText, Pencil, Plus, Sparkles, Trash2, Upload, Zap } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { useDataSourceStore } from '@/stores/dataSourceStore'
 import { useUserStore } from '@/stores/userStore'
 import { PageHeader } from '@/components/layout/PageHeader'
@@ -10,10 +11,12 @@ import { Badge } from '@/components/ui/Badge'
 import { StatusDot } from '@/components/ui/StatusDot'
 import { DEMO_SOURCE_ID } from '@/lib/demoData'
 import { SNAPSHOT_META } from '@/lib/snapshotData'
+import { handoffTemplate, summarizeHandoff } from '@/lib/handoff'
+import { getCatalog } from '@/lib/sourceCatalog'
 import type { ConnectionState, DataSource } from '@/types'
 
 const COLORS = ['#58A6FF', '#3FB950', '#BC8CFF', '#D29922', '#F85149', '#39C5CF']
-const empty = { name: '', url: '', anonKey: '', color: COLORS[0], description: '' }
+const empty = { name: '', url: '', anonKey: '', color: COLORS[0], description: '', handoff: '' }
 
 // IDs that are always present as built-in — hide from user-added list to avoid duplicates
 const BUILTIN_IDS = new Set([SNAPSHOT_META.id, DEMO_SOURCE_ID])
@@ -42,6 +45,7 @@ const BUILTIN_ROWS = [
 ]
 
 export function SourcesPage() {
+  const navigate = useNavigate()
   const { sources, status, addSource, updateSource, removeSource, testConnection } =
     useDataSourceStore()
   const isAdmin = useUserStore((s) => s.user.role === 'admin')
@@ -51,6 +55,7 @@ export function SourcesPage() {
   const [form, setForm] = useState(empty)
   // Confirmation before delete
   const [confirmDelete, setConfirmDelete] = useState<DataSource | null>(null)
+  const fileRef = useRef<HTMLInputElement>(null)
 
   // Filter out built-in IDs so they never appear in the live-sources table
   const liveSources = sources.filter((s) => !BUILTIN_IDS.has(s.id))
@@ -58,19 +63,28 @@ export function SourcesPage() {
   const openAdd = () => { setEditing(null); setForm(empty); setOpen(true) }
   const openEdit = (s: DataSource) => {
     setEditing(s)
-    setForm({ name: s.name, url: s.url, anonKey: s.anonKey, color: s.color, description: s.description })
+    setForm({ name: s.name, url: s.url, anonKey: s.anonKey, color: s.color, description: s.description, handoff: s.handoff ?? '' })
     setOpen(true)
+  }
+
+  const onUpload = (file: File) => {
+    const reader = new FileReader()
+    reader.onload = () => setForm((f) => ({ ...f, handoff: String(reader.result) }))
+    reader.readAsText(file)
   }
 
   const save = () => {
     if (!form.name.trim() || !form.url.trim() || !form.anonKey.trim()) return
-    if (editing) updateSource(editing.id, form)
+    const payload = { ...form, handoff: form.handoff.trim() || undefined }
+    if (editing) updateSource(editing.id, payload)
     else {
-      const s = addSource(form)
+      const s = addSource(payload)
       testConnection(s.id)
     }
     setOpen(false)
   }
+
+  const handoffSummary = form.handoff.trim() ? summarizeHandoff(form.handoff) : null
 
   const confirmAndDelete = () => {
     if (!confirmDelete) return
@@ -158,7 +172,7 @@ export function SourcesPage() {
                 <th className="px-4 py-2.5 font-medium">Source</th>
                 <th className="px-4 py-2.5 font-medium">URL</th>
                 <th className="px-4 py-2.5 font-medium">Status</th>
-                <th className="px-4 py-2.5 font-medium">Latency</th>
+                <th className="px-4 py-2.5 font-medium">Schema (handoff)</th>
                 <th className="px-4 py-2.5 font-medium">Tables</th>
                 <th className="px-4 py-2.5 font-medium text-right">Actions</th>
               </tr>
@@ -194,14 +208,26 @@ export function SourcesPage() {
                       <StatusDot state={st?.state ?? 'idle'} showLabel />
                       {st?.error && <div className="mt-0.5 text-[11px] text-accent-red">{st.error}</div>}
                     </td>
-                    <td className="px-4 py-3 font-data text-xs text-text-primary">
-                      {st?.latencyMs != null ? `${st.latencyMs} ms` : '—'}
+                    <td className="px-4 py-3">
+                      {(() => {
+                        const cat = getCatalog(s.id)
+                        if (cat.origin === 'handoff' && cat.tables.length) {
+                          const cols = cat.tables.reduce((a, t) => a + t.columns.length, 0)
+                          return <Badge tone="green">{cat.tables.length} tables · {cols} cols</Badge>
+                        }
+                        return <span className="text-[11px] text-text-secondary">No handoff</span>
+                      })()}
                     </td>
                     <td className="px-4 py-3">
                       {st?.tableCount != null ? <Badge tone="blue">{st.tableCount}</Badge> : '—'}
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-1">
+                        {getCatalog(s.id).tables.length > 0 && (
+                          <Button variant="secondary" size="sm" onClick={() => navigate(`/reports-gallery/${s.id}`)} title="Suggested reports">
+                            <Sparkles className="h-3.5 w-3.5" /> Reports
+                          </Button>
+                        )}
                         <Button variant="secondary" size="sm" onClick={() => testConnection(s.id)}>
                           <Zap className="h-3.5 w-3.5" /> Test
                         </Button>
@@ -267,6 +293,48 @@ export function SourcesPage() {
               ))}
             </div>
           </Field>
+
+          {/* Handoff upload */}
+          <div className="rounded-lg border border-accent-blue/20 bg-accent-blue/5 p-3">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-text-primary">
+                <FileText className="h-3.5 w-3.5 text-accent-blue" />
+                Schema handoff (handoff.md)
+              </div>
+              <div className="flex items-center gap-1">
+                <input ref={fileRef} type="file" accept=".md,.txt,text/markdown" className="hidden"
+                  onChange={(e) => { const f = e.target.files?.[0]; if (f) onUpload(f); e.target.value = '' }} />
+                <Button variant="ghost" size="sm" onClick={() => setForm((f) => ({ ...f, handoff: handoffTemplate() }))}>
+                  Use template
+                </Button>
+                <Button variant="secondary" size="sm" onClick={() => fileRef.current?.click()}>
+                  <Upload className="h-3.5 w-3.5" /> Upload
+                </Button>
+              </div>
+            </div>
+            <p className="mb-2 text-[11px] text-text-secondary">
+              อธิบาย table/column ของ source เพื่อให้ระบบเข้าใจ schema, แนะนำรายงาน และช่วยสร้าง widget ได้ถูกต้อง
+              (จำเป็นเมื่อ source มี RLS ที่ anon key อ่านไม่ได้)
+            </p>
+            <Textarea
+              value={form.handoff}
+              onChange={(e) => setForm({ ...form, handoff: e.target.value })}
+              placeholder={'## table: orders — Customer orders\n- id (id)\n- created_at (date)\n- amount (metric)\n- region (dimension)'}
+              rows={6}
+              className="font-data text-[11px]"
+            />
+            {handoffSummary && (
+              <div className="mt-2 text-[11px]">
+                {handoffSummary.ok ? (
+                  <span className="text-accent-green">
+                    ✓ พบ {handoffSummary.tables} tables · {handoffSummary.columns} columns — ระบบจะแนะนำรายงานให้อัตโนมัติ
+                  </span>
+                ) : (
+                  <span className="text-accent-amber">⚠ ยังอ่าน schema ไม่ได้ — ตรวจรูปแบบ (ดู "Use template")</span>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </Dialog>
 

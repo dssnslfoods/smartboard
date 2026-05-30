@@ -15,6 +15,8 @@ export interface DataSource {
   color: string
   description: string
   isActive: boolean
+  /** Raw handoff.md content uploaded for this source (schema + report hints). */
+  handoff?: string
 }
 
 export type ConnectionState = 'idle' | 'connecting' | 'connected' | 'error'
@@ -121,4 +123,36 @@ export interface AppSettings {
   theme: 'dark' | 'darker'
   defaultDateRange: DateRangeConfig['preset']
   defaultRefreshInterval: number
+}
+
+// ── Source schema catalog (what the system "knows" about a source) ────────────
+export interface ColumnMeta {
+  name: string
+  /** semantic role inferred from name/type — drives smart report suggestions */
+  role: 'metric' | 'dimension' | 'date' | 'id' | 'text'
+  type?: string
+}
+
+export interface TableMeta {
+  name: string
+  description?: string
+  columns: ColumnMeta[]
+}
+
+export interface SourceCatalog {
+  sourceId: string
+  tables: TableMeta[]
+  /** where the catalog came from */
+  origin: 'builtin' | 'handoff' | 'introspected'
+}
+
+/** A ready-made report idea suggested for a source. */
+export interface ReportSuggestion {
+  id: string
+  title: string
+  description: string
+  /** why this fits the source — shown to executives */
+  rationale: string
+  icon: WidgetType
+  widgets: Omit<WidgetConfig, 'id' | 'sourceId'>[]
 }
