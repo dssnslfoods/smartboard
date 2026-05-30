@@ -7,7 +7,8 @@ import type {
 } from '@/types'
 import { DEMO_SOURCE_ID, DEMO_TABLES } from './demoData'
 import { SNAPSHOT_SOURCE_ID, SNAPSHOT_TABLES } from './snapshotData'
-import { INVENTORY_CATALOG, INVENTORY_SOURCE_ID } from './inventorySnapshot'
+import { INVENTORY_CATALOG, INVENTORY_SOURCE_ID, INVENTORY_TABLES } from './inventorySnapshot'
+void INVENTORY_TABLES // referenced by snapshotData.ts
 import { parseHandoff, inferRole } from './handoff'
 import { useDataSourceStore } from '@/stores/dataSourceStore'
 

@@ -362,28 +362,30 @@ function buildSmartSales(): Template {
 
 function buildInventory(): Template {
   const iv = (w: Omit<WidgetConfig, "sourceId">): WidgetConfig => ({ sourceId: INVENTORY_SOURCE_ID, ...w })
-  const kStock = iv({ id: wid('kpi'), title: 'Total Stock Value', query: { table: 'inv_kpi', select: 'stock_value', aggregation: 'sum' }, visualization: 'kpi', size: 'sm', mapping: { valueKey: 'stock_value', prefix: '฿' } })
-  const kSku = iv({ id: wid('kpi'), title: 'Active SKUs', query: { table: 'inv_kpi', select: 'active_skus', aggregation: 'sum' }, visualization: 'kpi', size: 'sm', mapping: { valueKey: 'active_skus' } })
-  const kExpired = iv({ id: wid('kpi'), title: 'Expired Value', query: { table: 'inv_kpi', select: 'expired_value', aggregation: 'sum' }, visualization: 'kpi', size: 'sm', mapping: { valueKey: 'expired_value', prefix: '฿' } })
-  const kExpiring = iv({ id: wid('kpi'), title: 'Lots Expiring 30d', query: { table: 'inv_kpi', select: 'expiring_30d', aggregation: 'sum' }, visualization: 'kpi', size: 'sm', mapping: { valueKey: 'expiring_30d' } })
-  const line = iv({ id: wid('line'), title: 'Monthly Goods In vs Out', query: { table: 'inv_monthly', select: 'month,in_value,out_value', orderBy: 'month' }, visualization: 'line', size: 'lg', mapping: { xKey: 'month', yKeys: ['in_value','out_value'] } })
-  const groupPie = iv({ id: wid('pie'), title: 'Stock by Product Group', query: { table: 'inv_group', select: 'group,value' }, visualization: 'pie', size: 'md', mapping: { labelKey: 'group', valueKey: 'value' } })
-  const whBar = iv({ id: wid('bar'), title: 'Stock Value by Warehouse', query: { table: 'inv_warehouse', select: 'warehouse,value', orderBy: '-value' }, visualization: 'bar', size: 'lg', mapping: { labelKey: 'warehouse', valueKey: 'value' } })
-  const agingBar = iv({ id: wid('bar'), title: 'Stock Value by Lot Age', query: { table: 'inv_aging', select: 'bucket,value' }, visualization: 'bar', size: 'md', mapping: { labelKey: 'bucket', valueKey: 'value' } })
-  const itemTable = iv({ id: wid('table'), title: 'Top Items by Value', query: { table: 'inv_item', select: 'item,warehouse,qty,value', orderBy: '-value' }, visualization: 'table', size: 'full' })
-  const widgets: WidgetConfig[] = [kStock, kSku, kExpired, kExpiring, line, groupPie, whBar, agingBar, itemTable]
+  const kStock    = iv({ id: wid('kpi'), title: 'มูลค่าสต๊อกรวม',      query: { table: 'inv_kpi', select: 'stock_value',        aggregation: 'sum' }, visualization: 'kpi', size: 'sm', mapping: { valueKey: 'stock_value',        prefix: '฿' } })
+  const kSku      = iv({ id: wid('kpi'), title: 'Active SKUs (90 วัน)', query: { table: 'inv_kpi', select: 'active_skus',         aggregation: 'sum' }, visualization: 'kpi', size: 'sm', mapping: { valueKey: 'active_skus' } })
+  const kExpired  = iv({ id: wid('kpi'), title: 'มูลค่าหมดอายุแล้ว',   query: { table: 'inv_kpi', select: 'expired_value',       aggregation: 'sum' }, visualization: 'kpi', size: 'sm', mapping: { valueKey: 'expired_value',       prefix: '฿' } })
+  const kExpiring = iv({ id: wid('kpi'), title: 'Lots ใกล้หมด ≤30วัน', query: { table: 'inv_kpi', select: 'expiring_30d_lots',   aggregation: 'sum' }, visualization: 'kpi', size: 'sm', mapping: { valueKey: 'expiring_30d_lots' } })
+  const line      = iv({ id: wid('line'), title: 'รับเข้า vs จ่ายออกรายเดือน', query: { table: 'inv_monthly', select: 'month,in_value,out_value', orderBy: 'month' }, visualization: 'line', size: 'lg', mapping: { xKey: 'month', yKeys: ['in_value','out_value'] } })
+  const movePie   = iv({ id: wid('pie'),  title: 'สุขภาพการเคลื่อนไหว',  query: { table: 'inv_movement', select: 'status,items' }, visualization: 'pie', size: 'md', mapping: { labelKey: 'status', valueKey: 'items' } })
+  const groupBar  = iv({ id: wid('bar'),  title: 'มูลค่าตามกลุ่มสินค้า',  query: { table: 'inv_group', select: 'group,value', orderBy: '-value' }, visualization: 'bar', size: 'lg', mapping: { labelKey: 'group', valueKey: 'value' } })
+  const agingBar  = iv({ id: wid('bar'),  title: 'Lot Aging (อายุสต๊อก)',  query: { table: 'inv_aging', select: 'bucket,value' }, visualization: 'bar', size: 'md', mapping: { labelKey: 'bucket', valueKey: 'value' } })
+  const whBar     = iv({ id: wid('bar'),  title: 'มูลค่าสต๊อกตามคลัง',    query: { table: 'inv_warehouse', select: 'warehouse,value', orderBy: '-value' }, visualization: 'bar', size: 'full', mapping: { labelKey: 'warehouse', valueKey: 'value' } })
+  const itemTable = iv({ id: wid('table'), title: 'Top Items ตามมูลค่า',  query: { table: 'inv_item', select: 'item,warehouse,qty,value', orderBy: '-value' }, visualization: 'table', size: 'full' })
+  const widgets: WidgetConfig[] = [kStock, kSku, kExpired, kExpiring, line, movePie, groupBar, agingBar, whBar, itemTable]
   const layout: GridLayoutItem[] = [
-    { i: kStock.id, x: 0, y: 0, w: 3, h: 3 },
-    { i: kSku.id, x: 3, y: 0, w: 3, h: 3 },
-    { i: kExpired.id, x: 6, y: 0, w: 3, h: 3 },
-    { i: kExpiring.id, x: 9, y: 0, w: 3, h: 3 },
-    { i: line.id, x: 0, y: 3, w: 8, h: 7 },
-    { i: groupPie.id, x: 8, y: 3, w: 4, h: 7 },
-    { i: whBar.id, x: 0, y: 10, w: 8, h: 7 },
-    { i: agingBar.id, x: 8, y: 10, w: 4, h: 7 },
-    { i: itemTable.id, x: 0, y: 17, w: 12, h: 8 },
+    { i: kStock.id,    x: 0, y: 0,  w: 3, h: 3 },
+    { i: kSku.id,      x: 3, y: 0,  w: 3, h: 3 },
+    { i: kExpired.id,  x: 6, y: 0,  w: 3, h: 3 },
+    { i: kExpiring.id, x: 9, y: 0,  w: 3, h: 3 },
+    { i: line.id,      x: 0, y: 3,  w: 8, h: 7 },
+    { i: movePie.id,   x: 8, y: 3,  w: 4, h: 7 },
+    { i: groupBar.id,  x: 0, y: 10, w: 8, h: 7 },
+    { i: agingBar.id,  x: 8, y: 10, w: 4, h: 7 },
+    { i: whBar.id,     x: 0, y: 17, w: 12, h: 7 },
+    { i: itemTable.id, x: 0, y: 24, w: 12, h: 8 },
   ]
-  return { template: 'inventory', name: 'Inventory Overview', description: 'Frozen food-service stock value, movement, aging and expiry (snapshot 2026-05-30).', widgets, layout }
+  return { template: 'inventory', name: 'Inventory Overview', description: 'Frozen food-service stock · มูลค่า, การเคลื่อนไหว, aging, expiry (snapshot 2026-05-30).', widgets, layout }
 }
 
 function buildGroupExecutive(): Template {
