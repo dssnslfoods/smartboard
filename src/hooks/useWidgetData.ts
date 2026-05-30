@@ -7,6 +7,7 @@ import {
   isSnapshotTable,
   runSnapshotQuery,
 } from '@/lib/snapshotData'
+import { isLiveSource, fetchLive } from '@/lib/liveSourceConfig'
 import { supabaseManager } from '@/lib/supabaseManager'
 import type { WidgetConfig } from '@/types'
 
@@ -16,16 +17,35 @@ export interface WidgetData {
 }
 
 async function fetchWidget(config: WidgetConfig): Promise<WidgetData> {
-  // Real-data snapshot (read-only baked aggregates).
+  // 1. Live sources — fetch real-time from Supabase REST API
+  //    Falls back to snapshot if live fails or returns empty
+  if (isLiveSource(config.sourceId)) {
+    try {
+      const rows = await fetchLive(config.sourceId, config.query.table)
+      if (rows.length > 0) return { rows, count: rows.length }
+    } catch {
+      // Live fetch failed — fall through to snapshot
+    }
+    // Fallback to snapshot
+    if (isSnapshotTable(config.query.table)) {
+      const rows = runSnapshotQuery(config.query)
+      return { rows, count: rows.length }
+    }
+  }
+
+  // 2. Snapshot (baked aggregates)
   if (isSnapshotSource(config.sourceId) || isSnapshotTable(config.query.table)) {
     const rows = runSnapshotQuery(config.query)
     return { rows, count: rows.length }
   }
-  // Demo source or a demo table on any source -> synthesized data.
+
+  // 3. Demo source
   if (config.sourceId === DEMO_SOURCE_ID || isDemoTable(config.query.table)) {
     const rows = runDemoQuery(config.query)
     return { rows, count: rows.length }
   }
+
+  // 4. User-added live Supabase sources (via supabaseManager)
   const { rows, count } = await runQuery(config.query, config.sourceId)
   return { rows, count }
 }
@@ -38,7 +58,7 @@ export function useWidgetData(config: WidgetConfig) {
     queryKey: key,
     queryFn: () => fetchWidget(config),
     refetchInterval: config.refreshInterval ? config.refreshInterval * 1000 : false,
-    staleTime: 15_000,
+    staleTime: isLiveSource(config.sourceId) ? 30_000 : 15_000, // live sources: 30s stale
   })
 
   // Optional Supabase Realtime subscription -> invalidate on change.
