@@ -8,11 +8,40 @@ import { Dialog } from '@/components/ui/Dialog'
 import { Field, Input, Textarea } from '@/components/ui/Input'
 import { Badge } from '@/components/ui/Badge'
 import { StatusDot } from '@/components/ui/StatusDot'
-import type { DataSource } from '@/types'
+import { DEMO_SOURCE_ID } from '@/lib/demoData'
+import { SNAPSHOT_META } from '@/lib/snapshotData'
+import type { ConnectionState, DataSource } from '@/types'
 
 const COLORS = ['#58A6FF', '#3FB950', '#BC8CFF', '#D29922', '#F85149', '#39C5CF']
-
 const empty = { name: '', url: '', anonKey: '', color: COLORS[0], description: '' }
+
+// Built-in read-only sources always present (not stored in supabaseManager)
+const BUILTIN_ROWS = [
+  {
+    id: SNAPSHOT_META.id,
+    name: SNAPSHOT_META.name,
+    url: 'https://jcueieskfvhmrwcmgnyh.supabase.co',
+    color: SNAPSHOT_META.color,
+    description: SNAPSHOT_META.description,
+    state: 'connected' as ConnectionState,
+    latencyMs: undefined as number | undefined,
+    tableCount: undefined as number | undefined,
+    builtin: true,
+    badge: 'Snapshot',
+  },
+  {
+    id: DEMO_SOURCE_ID,
+    name: 'Demo data',
+    url: 'Built-in synthetic data',
+    color: '#BC8CFF',
+    description: 'Seeded demo data — no network connection required.',
+    state: 'demo' as ConnectionState | 'demo',
+    latencyMs: undefined,
+    tableCount: 5,
+    builtin: true,
+    badge: 'Built-in',
+  },
+]
 
 export function SourcesPage() {
   const { sources, status, addSource, updateSource, removeSource, testConnection } =
@@ -23,11 +52,7 @@ export function SourcesPage() {
   const [editing, setEditing] = useState<DataSource | null>(null)
   const [form, setForm] = useState(empty)
 
-  const openAdd = () => {
-    setEditing(null)
-    setForm(empty)
-    setOpen(true)
-  }
+  const openAdd = () => { setEditing(null); setForm(empty); setOpen(true) }
   const openEdit = (s: DataSource) => {
     setEditing(s)
     setForm({ name: s.name, url: s.url, anonKey: s.anonKey, color: s.color, description: s.description })
@@ -79,10 +104,51 @@ export function SourcesPage() {
               </tr>
             </thead>
             <tbody>
+              {/* ── Built-in sources ── */}
+              {BUILTIN_ROWS.map((row) => (
+                <tr key={row.id} className="border-b border-border last:border-0 hover:bg-bg-secondary/30">
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-2.5">
+                      <span className="h-2.5 w-2.5 rounded-full" style={{ background: row.color }} />
+                      <div>
+                        <div className="flex items-center gap-2 font-medium text-text-primary">
+                          {row.name}
+                          <Badge tone={row.badge === 'Snapshot' ? 'green' : 'purple'}>
+                            {row.badge}
+                          </Badge>
+                        </div>
+                        {row.description && (
+                          <div className="text-xs text-text-secondary">{row.description}</div>
+                        )}
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 font-data text-xs text-text-secondary">
+                    {row.url.startsWith('https') ? row.url.replace(/^https?:\/\//, '') : row.url}
+                  </td>
+                  <td className="px-4 py-3">
+                    <StatusDot state={row.state as never} showLabel />
+                  </td>
+                  <td className="px-4 py-3 font-data text-xs text-text-primary">
+                    {row.latencyMs != null ? `${row.latencyMs} ms` : '—'}
+                  </td>
+                  <td className="px-4 py-3">
+                    {row.tableCount != null ? <Badge tone="blue">{row.tableCount}</Badge> : '—'}
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <span className="text-xs text-text-secondary italic">Read-only</span>
+                  </td>
+                </tr>
+              ))}
+
+              {/* ── User-added live sources ── */}
               {sources.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-4 py-10 text-center text-text-secondary">
-                    No sources yet. The built-in <span className="text-accent-purple">Demo data</span> source is always available.
+                  <td colSpan={6} className="px-4 py-8 text-center text-text-secondary">
+                    No live sources added yet.{' '}
+                    <button className="text-accent-blue hover:underline" onClick={openAdd}>
+                      Add your first source →
+                    </button>
                   </td>
                 </tr>
               )}
@@ -140,6 +206,7 @@ export function SourcesPage() {
         </div>
       </div>
 
+      {/* Add / Edit dialog */}
       <Dialog
         open={open}
         onClose={() => setOpen(false)}
@@ -184,8 +251,11 @@ export function SourcesPage() {
                 <button
                   key={c}
                   onClick={() => setForm({ ...form, color: c })}
-                  className="h-7 w-7 rounded-full ring-2 ring-offset-2 ring-offset-bg-card transition-all"
-                  style={{ background: c, boxShadow: form.color === c ? `0 0 0 2px ${c}` : 'none', borderColor: c }}
+                  className="h-7 w-7 rounded-full ring-offset-2 ring-offset-bg-card transition-all"
+                  style={{
+                    background: c,
+                    boxShadow: form.color === c ? `0 0 0 2px ${c}` : 'none',
+                  }}
                   aria-label={c}
                 >
                   {form.color === c && <Activity className="mx-auto h-3.5 w-3.5 text-black/60" />}
