@@ -1,158 +1,263 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { Responsive, WidthProvider, type Layout } from 'react-grid-layout'
 import {
-  Clock,
+  ChevronDown,
   Copy,
-  Database,
+  ExternalLink,
   LayoutGrid,
-  MoreVertical,
+  Pencil,
   Plus,
+  RefreshCw,
   Trash2,
 } from 'lucide-react'
-import { formatDistanceToNow } from 'date-fns'
+import { useQueryClient } from '@tanstack/react-query'
 import { useDashboardStore } from '@/stores/dashboardStore'
 import { useDataSourceStore } from '@/stores/dataSourceStore'
 import { useUserStore } from '@/stores/userStore'
-import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/Button'
+import { Badge } from '@/components/ui/Badge'
 import { Dialog } from '@/components/ui/Dialog'
 import { Field, Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
+import { WidgetRenderer } from '@/components/widgets/WidgetRenderer'
 import { TEMPLATES } from '@/lib/templates'
+import { DEMO_SOURCE_ID } from '@/lib/demoData'
+import { SNAPSHOT_META } from '@/lib/snapshotData'
+import type { WidgetConfig } from '@/types'
+import { cn } from '@/lib/utils'
 
-function StatTile({ icon: Icon, label, value, tone }: { icon: typeof Database; label: string; value: string | number; tone: string }) {
+const ResponsiveGrid = WidthProvider(Responsive)
+
+function SourceDot({ color, name }: { color: string; name: string }) {
   return (
-    <div className="card flex items-center gap-4 p-4">
-      <div className="flex h-11 w-11 items-center justify-center rounded-lg" style={{ background: `${tone}1f` }}>
-        <Icon className="h-5 w-5" style={{ color: tone }} />
-      </div>
-      <div>
-        <div className="font-data text-2xl font-semibold text-text-primary">{value}</div>
-        <div className="text-xs text-text-secondary">{label}</div>
-      </div>
-    </div>
+    <span className="flex items-center gap-1.5 text-[11px] text-text-secondary">
+      <span className="h-2 w-2 rounded-full" style={{ background: color }} />
+      {name}
+    </span>
   )
 }
 
 export function HomePage() {
   const navigate = useNavigate()
-  const { dashboards, createDashboard, duplicateDashboard, deleteDashboard } = useDashboardStore()
+  const queryClient = useQueryClient()
+  const { dashboards, createDashboard, duplicateDashboard, deleteDashboard, removeWidget } =
+    useDashboardStore()
   const sources = useDataSourceStore((s) => s.sources)
   const isAdmin = useUserStore((s) => s.user.role === 'admin')
 
-  const [open, setOpen] = useState(false)
+  const [activeDashId, setActiveDashId] = useState(dashboards[0]?.id ?? '')
+  const [createOpen, setCreateOpen] = useState(false)
+  const [dashMenuOpen, setDashMenuOpen] = useState(false)
   const [name, setName] = useState('')
   const [template, setTemplate] = useState('')
-  const [menu, setMenu] = useState<string | null>(null)
 
-  const lastUpdated = dashboards.reduce((max, d) => Math.max(max, d.updatedAt), 0)
+  const activeDash = useMemo(
+    () => dashboards.find((d) => d.id === activeDashId) ?? dashboards[0],
+    [dashboards, activeDashId]
+  )
+
+  const allSources = useMemo(() => {
+    const snap = { id: SNAPSHOT_META.id, name: SNAPSHOT_META.name, color: SNAPSHOT_META.color }
+    const demo = { id: DEMO_SOURCE_ID, name: 'Demo data', color: '#BC8CFF' }
+    const live = sources.map((s) => ({ id: s.id, name: s.name, color: s.color }))
+    return [snap, demo, ...live]
+  }, [sources])
+
+  const usedSources = useMemo(() => {
+    if (!activeDash) return []
+    const ids = new Set(activeDash.widgets.map((w) => w.sourceId))
+    return allSources.filter((s) => ids.has(s.id))
+  }, [activeDash, allSources])
 
   const submit = () => {
     if (!name.trim()) return
     const d = createDashboard({ name: name.trim(), template: template || undefined })
-    setOpen(false)
+    setCreateOpen(false)
     setName('')
     setTemplate('')
-    navigate(`/dashboard/${d.id}`)
+    setActiveDashId(d.id)
   }
 
-  return (
-    <div className="pb-10">
-      <PageHeader
-        title="Dashboard Hub"
-        subtitle="Executive analytics across all your connected data sources."
-        actions={
-          <Button variant="primary" onClick={() => setOpen(true)}>
-            <Plus className="h-4 w-4" /> New Dashboard
-          </Button>
-        }
-      />
+  const onLayoutChange = (current: Layout[]) => {
+    // read-only in Hub — layout not persisted here
+    void current
+  }
 
-      <div className="grid grid-cols-1 gap-3 px-6 py-4 sm:grid-cols-3">
-        <StatTile icon={Database} label="Data sources" value={sources.length + 1} tone="#58A6FF" />
-        <StatTile icon={LayoutGrid} label="Dashboards" value={dashboards.length} tone="#3FB950" />
-        <StatTile
-          icon={Clock}
-          label="Last updated"
-          value={lastUpdated ? formatDistanceToNow(lastUpdated, { addSuffix: true }) : '—'}
-          tone="#BC8CFF"
-        />
+  if (!activeDash) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-3 text-text-secondary">
+        <LayoutGrid className="h-10 w-10" />
+        <p className="text-sm">No dashboards yet.</p>
+        {isAdmin && (
+          <Button variant="primary" onClick={() => setCreateOpen(true)}>
+            <Plus className="h-4 w-4" /> Create your first dashboard
+          </Button>
+        )}
+      </div>
+    )
+  }
+
+  const layouts = { lg: activeDash.layout.map((l) => ({ ...l })) }
+
+  return (
+    <div className="flex h-full flex-col overflow-hidden">
+      {/* ── Top bar ─────────────────────────────────────────── */}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-6 py-3">
+        {/* Dashboard selector */}
+        <div className="relative">
+          <button
+            onClick={() => setDashMenuOpen((v) => !v)}
+            className="flex items-center gap-2 rounded-lg border border-border bg-bg-card px-3 py-2 text-sm font-semibold text-text-primary hover:border-[#30363d] transition-colors"
+          >
+            <LayoutGrid className="h-4 w-4 text-accent-blue" />
+            {activeDash.name}
+            <Badge tone="neutral">{activeDash.widgets.length} widgets</Badge>
+            <ChevronDown className="h-4 w-4 text-text-secondary" />
+          </button>
+
+          {dashMenuOpen && (
+            <>
+              <div className="fixed inset-0 z-10" onClick={() => setDashMenuOpen(false)} />
+              <div className="absolute left-0 top-11 z-20 w-72 overflow-hidden rounded-xl border border-border bg-bg-secondary shadow-2xl animate-fade-in">
+                <div className="px-3 py-2 text-[10px] uppercase tracking-wider text-text-secondary">
+                  Switch dashboard
+                </div>
+                <div className="max-h-64 overflow-y-auto pb-1">
+                  {dashboards.map((d) => (
+                    <button
+                      key={d.id}
+                      onClick={() => { setActiveDashId(d.id); setDashMenuOpen(false) }}
+                      className={cn(
+                        'flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-bg-card',
+                        d.id === activeDashId && 'bg-bg-card text-accent-blue'
+                      )}
+                    >
+                      <span className="truncate font-medium">{d.name}</span>
+                      <span className="shrink-0 text-[11px] text-text-secondary">
+                        {d.widgets.length}w
+                      </span>
+                    </button>
+                  ))}
+                </div>
+                {isAdmin && (
+                  <button
+                    onClick={() => { setDashMenuOpen(false); setCreateOpen(true) }}
+                    className="flex w-full items-center gap-2 border-t border-border px-3 py-2.5 text-sm text-accent-blue hover:bg-bg-card"
+                  >
+                    <Plus className="h-4 w-4" /> New dashboard
+                  </button>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Source dots */}
+        <div className="flex flex-wrap items-center gap-3">
+          {usedSources.map((s) => (
+            <SourceDot key={s.id} color={s.color} name={s.name} />
+          ))}
+        </div>
+
+        {/* Actions */}
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="md"
+            onClick={() => queryClient.invalidateQueries({ queryKey: ['widget'] })}
+          >
+            <RefreshCw className="h-4 w-4" /> Refresh
+          </Button>
+          <Button
+            variant="secondary"
+            size="md"
+            onClick={() => navigate(`/boardroom/dashboard/${activeDash.id}`)}
+          >
+            <ExternalLink className="h-4 w-4" /> Full view
+          </Button>
+          {isAdmin && (
+            <>
+              <Button
+                variant="ghost"
+                size="icon"
+                title="Duplicate"
+                onClick={() => {
+                  const copy = duplicateDashboard(activeDash.id)
+                  if (copy) setActiveDashId(copy.id)
+                }}
+              >
+                <Copy className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-accent-red"
+                title="Delete"
+                onClick={() => {
+                  const next = dashboards.find((d) => d.id !== activeDash.id)
+                  deleteDashboard(activeDash.id)
+                  if (next) setActiveDashId(next.id)
+                }}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+              <Button variant="secondary" onClick={() => navigate('/boardroom/widget-builder')}>
+                <Pencil className="h-4 w-4" /> Add widget
+              </Button>
+            </>
+          )}
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 px-6 py-2 sm:grid-cols-2 lg:grid-cols-3">
-        {dashboards.map((d) => (
-          <div
-            key={d.id}
-            onClick={() => navigate(`/dashboard/${d.id}`)}
-            className="card card-hover group relative cursor-pointer p-5"
-          >
-            <div className="flex items-start justify-between">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent-blue/12">
-                <LayoutGrid className="h-5 w-5 text-accent-blue" />
-              </div>
-              {isAdmin && (
-                <div className="relative">
-                  <button
-                    className="rounded-md p-1 text-text-secondary opacity-0 transition-opacity hover:bg-bg-secondary hover:text-text-primary group-hover:opacity-100"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setMenu(menu === d.id ? null : d.id)
-                    }}
-                  >
-                    <MoreVertical className="h-4 w-4" />
-                  </button>
-                  {menu === d.id && (
-                    <>
-                      <div className="fixed inset-0 z-10" onClick={(e) => { e.stopPropagation(); setMenu(null) }} />
-                      <div className="absolute right-0 top-7 z-20 w-36 overflow-hidden rounded-lg border border-border bg-bg-secondary py-1 shadow-xl" onClick={(e) => e.stopPropagation()}>
-                        <button
-                          className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs text-text-primary hover:bg-bg-card"
-                          onClick={() => { duplicateDashboard(d.id); setMenu(null) }}
-                        >
-                          <Copy className="h-3.5 w-3.5" /> Duplicate
-                        </button>
-                        <button
-                          className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs text-accent-red hover:bg-bg-card"
-                          onClick={() => { deleteDashboard(d.id); setMenu(null) }}
-                        >
-                          <Trash2 className="h-3.5 w-3.5" /> Delete
-                        </button>
-                      </div>
-                    </>
-                  )}
-                </div>
-              )}
-            </div>
-            <h3 className="mt-4 text-base font-semibold text-text-primary">{d.name}</h3>
-            <p className="mt-1 line-clamp-2 text-xs text-text-secondary">
-              {d.description ?? 'Custom dashboard'}
-            </p>
-            <div className="mt-4 flex items-center justify-between text-[11px] text-text-secondary">
-              <span>{d.widgets.length} widgets</span>
-              <span>Updated {formatDistanceToNow(d.updatedAt, { addSuffix: true })}</span>
-            </div>
+      {/* ── Widget grid ─────────────────────────────────────── */}
+      <div className="flex-1 overflow-auto p-4">
+        {activeDash.widgets.length === 0 ? (
+          <div className="flex h-full flex-col items-center justify-center gap-3 text-text-secondary">
+            <LayoutGrid className="h-10 w-10" />
+            <p className="text-sm">This dashboard is empty.</p>
+            {isAdmin && (
+              <Button variant="primary" onClick={() => navigate('/boardroom/widget-builder')}>
+                <Plus className="h-4 w-4" /> Add widget
+              </Button>
+            )}
           </div>
-        ))}
-
-        {isAdmin && (
-          <button
-            onClick={() => setOpen(true)}
-            className="card flex min-h-[180px] flex-col items-center justify-center gap-2 border-dashed text-text-secondary transition-colors hover:border-accent-blue/40 hover:text-accent-blue"
+        ) : (
+          <ResponsiveGrid
+            className="layout"
+            layouts={layouts}
+            breakpoints={{ lg: 996, md: 768, sm: 0 }}
+            cols={{ lg: 12, md: 8, sm: 4 }}
+            rowHeight={48}
+            margin={[14, 14]}
+            isDraggable={false}
+            isResizable={false}
+            onLayoutChange={onLayoutChange}
           >
-            <Plus className="h-6 w-6" />
-            <span className="text-sm font-medium">Create dashboard</span>
-          </button>
+            {activeDash.widgets.map((w: WidgetConfig) => (
+              <div key={w.id}>
+                <WidgetRenderer
+                  config={w}
+                  editMode={false}
+                  onRemove={
+                    isAdmin ? (wid) => removeWidget(activeDash.id, wid) : undefined
+                  }
+                />
+              </div>
+            ))}
+          </ResponsiveGrid>
         )}
       </div>
 
+      {/* ── Create dashboard dialog ─────────────────────────── */}
       <Dialog
-        open={open}
-        onClose={() => setOpen(false)}
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
         title="Create dashboard"
         description="Start blank or from a curated executive template."
         footer={
           <>
-            <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
+            <Button variant="ghost" onClick={() => setCreateOpen(false)}>Cancel</Button>
             <Button variant="primary" onClick={submit} disabled={!name.trim()}>Create</Button>
           </>
         }

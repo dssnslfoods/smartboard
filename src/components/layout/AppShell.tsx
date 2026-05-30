@@ -14,10 +14,10 @@ import { SourceSelector } from './SourceSelector'
 import { Badge } from '@/components/ui/Badge'
 
 const NAV = [
-  { to: '/', label: 'Hub', icon: PanelsTopLeft, end: true },
-  { to: '/sources', label: 'Sources', icon: Database, adminOnly: true },
-  { to: '/widget-builder', label: 'Widget Builder', icon: Wrench, adminOnly: true },
-  { to: '/settings', label: 'Settings', icon: Settings },
+  { to: '/boardroom', label: 'Hub', icon: PanelsTopLeft, end: true },
+  { to: '/boardroom/sources', label: 'Sources', icon: Database, adminOnly: true },
+  { to: '/boardroom/widget-builder', label: 'Widget Builder', icon: Wrench, adminOnly: true },
+  { to: '/boardroom/settings', label: 'Settings', icon: Settings },
 ]
 
 export function AppShell() {

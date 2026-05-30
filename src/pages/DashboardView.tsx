@@ -56,7 +56,7 @@ export function DashboardView() {
       <div className="flex h-full flex-col items-center justify-center gap-3 text-text-secondary">
         <LayoutGrid className="h-8 w-8" />
         <p className="text-sm">Dashboard not found.</p>
-        <Link to="/" className="text-sm text-accent-blue">Back to Hub</Link>
+        <Link to="/boardroom" className="text-sm text-accent-blue">Back to Hub</Link>
       </div>
     )
   }
@@ -89,7 +89,7 @@ export function DashboardView() {
       {/* Top bar */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-6 py-3">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/')} aria-label="Back">
+          <Button variant="ghost" size="icon" onClick={() => navigate('/boardroom')} aria-label="Back">
             <ArrowLeft className="h-4 w-4" />
           </Button>
           {editingName ? (
@@ -138,7 +138,7 @@ export function DashboardView() {
           </Button>
           {isAdmin && (
             <>
-              <Button variant="secondary" onClick={() => navigate('/widget-builder')}>
+              <Button variant="secondary" onClick={() => navigate('/boardroom/widget-builder')}>
                 <Plus className="h-4 w-4" /> Add widget
               </Button>
               <Button
@@ -159,7 +159,7 @@ export function DashboardView() {
             <LayoutGrid className="h-10 w-10" />
             <p className="text-sm">This dashboard is empty.</p>
             {isAdmin && (
-              <Button variant="primary" onClick={() => navigate('/widget-builder')}>
+              <Button variant="primary" onClick={() => navigate('/boardroom/widget-builder')}>
                 <Plus className="h-4 w-4" /> Add your first widget
               </Button>
             )}
@@ -182,7 +182,7 @@ export function DashboardView() {
                 <WidgetRenderer
                   config={w}
                   editMode={editMode}
-                  onEdit={() => navigate('/widget-builder')}
+                  onEdit={() => navigate('/boardroom/widget-builder')}
                   onRemove={(wid) => removeWidget(dashboard.id, wid)}
                 />
               </div>

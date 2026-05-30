@@ -151,7 +151,7 @@ export function WidgetBuilderPage() {
     const widget: WidgetConfig = { ...config, id: uid('w') }
     addWidget(targetDashboard, widget)
     setSaved(true)
-    setTimeout(() => navigate(`/dashboard/${targetDashboard}`), 600)
+    setTimeout(() => navigate(`/boardroom/dashboard/${targetDashboard}`), 600)
   }
 
   const STEPS = ['Source', 'Table', 'Query', 'Visualization', 'Preview & Save']
