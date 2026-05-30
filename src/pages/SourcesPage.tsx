@@ -15,7 +15,9 @@ import type { ConnectionState, DataSource } from '@/types'
 const COLORS = ['#58A6FF', '#3FB950', '#BC8CFF', '#D29922', '#F85149', '#39C5CF']
 const empty = { name: '', url: '', anonKey: '', color: COLORS[0], description: '' }
 
-// Built-in read-only sources always present (not stored in supabaseManager)
+// IDs that are always present as built-in — hide from user-added list to avoid duplicates
+const BUILTIN_IDS = new Set([SNAPSHOT_META.id, DEMO_SOURCE_ID])
+
 const BUILTIN_ROWS = [
   {
     id: SNAPSHOT_META.id,
@@ -24,9 +26,7 @@ const BUILTIN_ROWS = [
     color: SNAPSHOT_META.color,
     description: SNAPSHOT_META.description,
     state: 'connected' as ConnectionState,
-    latencyMs: undefined as number | undefined,
     tableCount: undefined as number | undefined,
-    builtin: true,
     badge: 'Snapshot',
   },
   {
@@ -36,9 +36,7 @@ const BUILTIN_ROWS = [
     color: '#BC8CFF',
     description: 'Seeded demo data — no network connection required.',
     state: 'demo' as ConnectionState | 'demo',
-    latencyMs: undefined,
     tableCount: 5,
-    builtin: true,
     badge: 'Built-in',
   },
 ]
@@ -51,6 +49,11 @@ export function SourcesPage() {
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<DataSource | null>(null)
   const [form, setForm] = useState(empty)
+  // Confirmation before delete
+  const [confirmDelete, setConfirmDelete] = useState<DataSource | null>(null)
+
+  // Filter out built-in IDs so they never appear in the live-sources table
+  const liveSources = sources.filter((s) => !BUILTIN_IDS.has(s.id))
 
   const openAdd = () => { setEditing(null); setForm(empty); setOpen(true) }
   const openEdit = (s: DataSource) => {
@@ -67,6 +70,12 @@ export function SourcesPage() {
       testConnection(s.id)
     }
     setOpen(false)
+  }
+
+  const confirmAndDelete = () => {
+    if (!confirmDelete) return
+    removeSource(confirmDelete.id)
+    setConfirmDelete(null)
   }
 
   if (!isAdmin) {
@@ -90,36 +99,33 @@ export function SourcesPage() {
         }
       />
 
-      <div className="px-6 py-4">
+      <div className="px-6 py-4 space-y-4">
+        {/* ── Built-in sources (read-only) ── */}
         <div className="card overflow-hidden">
+          <div className="border-b border-border bg-bg-secondary/50 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-text-secondary">
+            Built-in Sources
+          </div>
           <table className="w-full text-left text-sm">
-            <thead className="border-b border-border bg-bg-secondary/50 text-xs text-text-secondary">
+            <thead className="border-b border-border bg-bg-secondary/30 text-xs text-text-secondary">
               <tr>
-                <th className="px-4 py-3 font-medium">Source</th>
-                <th className="px-4 py-3 font-medium">URL</th>
-                <th className="px-4 py-3 font-medium">Status</th>
-                <th className="px-4 py-3 font-medium">Latency</th>
-                <th className="px-4 py-3 font-medium">Tables</th>
-                <th className="px-4 py-3 font-medium text-right">Actions</th>
+                <th className="px-4 py-2.5 font-medium">Source</th>
+                <th className="px-4 py-2.5 font-medium">URL</th>
+                <th className="px-4 py-2.5 font-medium">Status</th>
+                <th className="px-4 py-2.5 font-medium">Tables</th>
               </tr>
             </thead>
             <tbody>
-              {/* ── Built-in sources ── */}
               {BUILTIN_ROWS.map((row) => (
-                <tr key={row.id} className="border-b border-border last:border-0 hover:bg-bg-secondary/30">
+                <tr key={row.id} className="border-b border-border last:border-0 hover:bg-bg-secondary/20">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2.5">
                       <span className="h-2.5 w-2.5 rounded-full" style={{ background: row.color }} />
                       <div>
                         <div className="flex items-center gap-2 font-medium text-text-primary">
                           {row.name}
-                          <Badge tone={row.badge === 'Snapshot' ? 'green' : 'purple'}>
-                            {row.badge}
-                          </Badge>
+                          <Badge tone={row.badge === 'Snapshot' ? 'green' : 'purple'}>{row.badge}</Badge>
                         </div>
-                        {row.description && (
-                          <div className="text-xs text-text-secondary">{row.description}</div>
-                        )}
+                        <div className="text-xs text-text-secondary">{row.description}</div>
                       </div>
                     </div>
                   </td>
@@ -129,22 +135,38 @@ export function SourcesPage() {
                   <td className="px-4 py-3">
                     <StatusDot state={row.state as never} showLabel />
                   </td>
-                  <td className="px-4 py-3 font-data text-xs text-text-primary">
-                    {row.latencyMs != null ? `${row.latencyMs} ms` : '—'}
-                  </td>
                   <td className="px-4 py-3">
                     {row.tableCount != null ? <Badge tone="blue">{row.tableCount}</Badge> : '—'}
                   </td>
-                  <td className="px-4 py-3 text-right">
-                    <span className="text-xs text-text-secondary italic">Read-only</span>
-                  </td>
                 </tr>
               ))}
+            </tbody>
+          </table>
+        </div>
 
-              {/* ── User-added live sources ── */}
-              {sources.length === 0 && (
+        {/* ── Live (user-added) sources ── */}
+        <div className="card overflow-hidden">
+          <div className="flex items-center justify-between border-b border-border bg-bg-secondary/50 px-4 py-2">
+            <span className="text-xs font-semibold uppercase tracking-wide text-text-secondary">
+              Live Sources
+            </span>
+            <span className="text-xs text-text-secondary">{liveSources.length} connected</span>
+          </div>
+          <table className="w-full text-left text-sm">
+            <thead className="border-b border-border bg-bg-secondary/30 text-xs text-text-secondary">
+              <tr>
+                <th className="px-4 py-2.5 font-medium">Source</th>
+                <th className="px-4 py-2.5 font-medium">URL</th>
+                <th className="px-4 py-2.5 font-medium">Status</th>
+                <th className="px-4 py-2.5 font-medium">Latency</th>
+                <th className="px-4 py-2.5 font-medium">Tables</th>
+                <th className="px-4 py-2.5 font-medium text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {liveSources.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-text-secondary">
+                  <td colSpan={6} className="px-4 py-10 text-center text-text-secondary">
                     No live sources added yet.{' '}
                     <button className="text-accent-blue hover:underline" onClick={openAdd}>
                       Add your first source →
@@ -152,18 +174,16 @@ export function SourcesPage() {
                   </td>
                 </tr>
               )}
-              {sources.map((s) => {
+              {liveSources.map((s) => {
                 const st = status[s.id]
                 return (
-                  <tr key={s.id} className="border-b border-border last:border-0 hover:bg-bg-secondary/30">
+                  <tr key={s.id} className="border-b border-border last:border-0 hover:bg-bg-secondary/20">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2.5">
                         <span className="h-2.5 w-2.5 rounded-full" style={{ background: s.color }} />
                         <div>
                           <div className="font-medium text-text-primary">{s.name}</div>
-                          {s.description && (
-                            <div className="text-xs text-text-secondary">{s.description}</div>
-                          )}
+                          {s.description && <div className="text-xs text-text-secondary">{s.description}</div>}
                         </div>
                       </div>
                     </td>
@@ -192,7 +212,8 @@ export function SourcesPage() {
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8 text-accent-red"
-                          onClick={() => removeSource(s.id)}
+                          onClick={() => setConfirmDelete(s)}
+                          title="Delete source"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </Button>
@@ -226,21 +247,10 @@ export function SourcesPage() {
             <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Production DB" />
           </Field>
           <Field label="Supabase URL">
-            <Input
-              value={form.url}
-              onChange={(e) => setForm({ ...form, url: e.target.value })}
-              placeholder="https://xxxx.supabase.co"
-              className="font-data text-xs"
-            />
+            <Input value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })} placeholder="https://xxxx.supabase.co" className="font-data text-xs" />
           </Field>
-          <Field label="Anon key" hint="The public anon key. Stored only in your browser's localStorage.">
-            <Textarea
-              value={form.anonKey}
-              onChange={(e) => setForm({ ...form, anonKey: e.target.value })}
-              placeholder="eyJhbGciOi…"
-              rows={3}
-              className="font-data text-xs"
-            />
+          <Field label="Anon key" hint="Stored only in your browser's localStorage.">
+            <Textarea value={form.anonKey} onChange={(e) => setForm({ ...form, anonKey: e.target.value })} placeholder="eyJhbGciOi…" rows={3} className="font-data text-xs" />
           </Field>
           <Field label="Description">
             <Input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Customer-facing prod cluster" />
@@ -248,21 +258,35 @@ export function SourcesPage() {
           <Field label="Accent color">
             <div className="flex gap-2">
               {COLORS.map((c) => (
-                <button
-                  key={c}
-                  onClick={() => setForm({ ...form, color: c })}
+                <button key={c} onClick={() => setForm({ ...form, color: c })}
                   className="h-7 w-7 rounded-full ring-offset-2 ring-offset-bg-card transition-all"
-                  style={{
-                    background: c,
-                    boxShadow: form.color === c ? `0 0 0 2px ${c}` : 'none',
-                  }}
-                  aria-label={c}
-                >
+                  style={{ background: c, boxShadow: form.color === c ? `0 0 0 2px ${c}` : 'none' }}
+                  aria-label={c}>
                   {form.color === c && <Activity className="mx-auto h-3.5 w-3.5 text-black/60" />}
                 </button>
               ))}
             </div>
           </Field>
+        </div>
+      </Dialog>
+
+      {/* Delete confirmation dialog */}
+      <Dialog
+        open={!!confirmDelete}
+        onClose={() => setConfirmDelete(null)}
+        title="Delete source"
+        description={`Are you sure you want to remove "${confirmDelete?.name}"? Any dashboards using this source will show empty data.`}
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setConfirmDelete(null)}>Cancel</Button>
+            <Button variant="danger" onClick={confirmAndDelete}>
+              <Trash2 className="h-4 w-4" /> Delete
+            </Button>
+          </>
+        }
+      >
+        <div className="rounded-lg border border-accent-red/20 bg-accent-red/8 p-3 text-sm text-accent-red">
+          ⚠️ This action cannot be undone.
         </div>
       </Dialog>
     </div>
