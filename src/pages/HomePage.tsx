@@ -23,6 +23,7 @@ import { Select } from '@/components/ui/Select'
 import { TEMPLATES } from '@/lib/templates'
 import { DEMO_SOURCE_ID } from '@/lib/demoData'
 import { SNAPSHOT_SOURCES } from '@/lib/snapshotData'
+import { useSourceActiveStore } from '@/stores/sourceActiveStore'
 import type { GridLayoutItem, WidgetConfig } from '@/types'
 import { cn } from '@/lib/utils'
 
