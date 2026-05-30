@@ -18,7 +18,7 @@ import { useDashboardStore } from '@/stores/dashboardStore'
 import { useUserStore } from '@/stores/userStore'
 import { getCatalog, suggestReports } from '@/lib/sourceCatalog'
 import { DEMO_SOURCE_ID } from '@/lib/demoData'
-import { SNAPSHOT_META } from '@/lib/snapshotData'
+import { SNAPSHOT_SOURCES } from '@/lib/snapshotData'
 import { uid } from '@/lib/utils'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/Button'
@@ -31,7 +31,8 @@ const VIZ_ICON: Record<WidgetType, typeof LineChart> = {
 }
 
 function sourceMeta(id: string, sources: { id: string; name: string; color: string }[]) {
-  if (id === SNAPSHOT_META.id) return { name: SNAPSHOT_META.name, color: SNAPSHOT_META.color }
+  const snap = SNAPSHOT_SOURCES.find((s) => s.id === id)
+  if (snap) return { name: snap.name, color: snap.color }
   if (id === DEMO_SOURCE_ID) return { name: 'Demo data', color: '#BC8CFF' }
   return sources.find((s) => s.id === id) ?? { name: id, color: '#58A6FF' }
 }
