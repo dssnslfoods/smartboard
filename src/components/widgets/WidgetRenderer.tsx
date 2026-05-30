@@ -3,6 +3,7 @@ import { useWidgetData } from '@/hooks/useWidgetData'
 import { useDataSourceStore } from '@/stores/dataSourceStore'
 import { DEMO_SOURCE_ID } from '@/lib/demoData'
 import { SNAPSHOT_SOURCES } from '@/lib/snapshotData'
+import { useSourceActiveStore } from '@/stores/sourceActiveStore'
 import { WidgetFrame } from './WidgetFrame'
 import { KPICard } from './KPICard'
 import { LineChartWidget } from './LineChartWidget'
@@ -20,7 +21,11 @@ interface Props {
 }
 
 export function WidgetRenderer({ config, editMode, onEdit, onRemove }: Props) {
-  const { data, isLoading, isFetching, error, refetch } = useWidgetData(config)
+  const isSourceActive = useSourceActiveStore((s) => s.isActive)
+  const active = isSourceActive(config.sourceId)
+  const { data, isLoading, isFetching, error, refetch } = useWidgetData(
+    active ? config : { ...config, sourceId: '__inactive__' }
+  )
   const source = useDataSourceStore((s) =>
     s.sources.find((src) => src.id === config.sourceId)
   )
@@ -58,9 +63,9 @@ export function WidgetRenderer({ config, editMode, onEdit, onRemove }: Props) {
       title={config.title}
       sourceColor={sourceColor}
       sourceName={sourceName}
-      loading={isLoading}
-      error={error ? (error as Error).message : null}
-      empty={!isLoading && rows.length === 0}
+      loading={active && isLoading}
+      error={active ? (error ? (error as Error).message : null) : `Source "${sourceName ?? config.sourceId}" is inactive`}
+      empty={active && !isLoading && rows.length === 0}
       onRefresh={() => refetch()}
       onEdit={onEdit ? () => onEdit(config) : undefined}
       onRemove={onRemove ? () => onRemove(config.id) : undefined}

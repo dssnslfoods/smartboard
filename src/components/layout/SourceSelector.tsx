@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { useDataSourceStore } from '@/stores/dataSourceStore'
 import { DEMO_SOURCE_ID } from '@/lib/demoData'
 import { SNAPSHOT_SOURCES } from '@/lib/snapshotData'
+import { useSourceActiveStore } from '@/stores/sourceActiveStore'
 import { StatusDot } from '@/components/ui/StatusDot'
 import { cn } from '@/lib/utils'
 
@@ -12,11 +13,12 @@ export function SourceSelector() {
   const [open, setOpen] = useState(false)
   const navigate = useNavigate()
 
+  const isSourceActive = useSourceActiveStore((s) => s.isActive)
   const all = [
     ...SNAPSHOT_SOURCES.map((s) => ({ id: s.id, name: s.name, color: s.color, isDemo: true })),
     { id: DEMO_SOURCE_ID, name: 'Demo data', color: '#BC8CFF', isDemo: true },
     ...sources.map((s) => ({ id: s.id, name: s.name, color: s.color, isDemo: false })),
-  ]
+  ].filter((s) => isSourceActive(s.id))
   const active = all.find((s) => s.id === activeSourceId) ?? all[0]
 
   return (

@@ -51,9 +51,28 @@ export function HomePage() {
   const [newName, setNewName] = useState('')
   const [newTemplate, setNewTemplate] = useState('')
 
+  const isSourceActive = useSourceActiveStore((s) => s.isActive)
+  // We resubscribe to the active map so the dashboard list re-renders on toggle.
+  const activeMap = useSourceActiveStore((s) => s.map)
+
+  /** A dashboard is "available" if every widget's source is active. */
+  const availableDashboards = useMemo(
+    () =>
+      dashboards.filter((d) =>
+        d.widgets.every((w) => isSourceActive(w.sourceId)) && d.widgets.length > 0
+          ? true
+          : d.widgets.length === 0
+          ? true
+          : false
+      ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [dashboards, activeMap]
+  )
+
   const activeDash = useMemo(
-    () => dashboards.find((d) => d.id === activeDashId) ?? dashboards[0],
-    [dashboards, activeDashId]
+    () =>
+      availableDashboards.find((d) => d.id === activeDashId) ?? availableDashboards[0] ?? dashboards[0],
+    [availableDashboards, activeDashId, dashboards]
   )
 
   // Source color lookup
@@ -117,7 +136,7 @@ export function HomePage() {
 
       {/* ── Tab bar ──────────────────────────────────────────── */}
       <div className="flex items-end gap-0 border-b border-border bg-bg-secondary px-4 pt-3 overflow-x-auto">
-        {dashboards.map((d) => {
+        {availableDashboards.map((d) => {
           const isActive = d.id === activeDash?.id
           return (
             <button

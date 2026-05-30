@@ -25,7 +25,8 @@ import { useDataSourceStore } from '@/stores/dataSourceStore'
 import { useDashboardStore } from '@/stores/dashboardStore'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { DEMO_SOURCE_ID } from '@/lib/demoData'
-import { SNAPSHOT_META } from '@/lib/snapshotData'
+import { SNAPSHOT_SOURCES } from '@/lib/snapshotData'
+import { useSourceActiveStore } from '@/stores/sourceActiveStore'
 import { getCatalog } from '@/lib/sourceCatalog'
 import { toSQL } from '@/lib/queryEngine'
 import { uid } from '@/lib/utils'
@@ -75,6 +76,9 @@ export function WidgetBuilderPage() {
   const sources = useDataSourceStore((s) => s.sources)
   const { dashboards, addWidget } = useDashboardStore()
   const defaultRefresh = useSettingsStore((s) => s.defaultRefreshInterval)
+  // Subscribe so the source dropdown re-renders when active toggles change.
+  const activeMap = useSourceActiveStore((s) => s.map)
+  void activeMap
 
   const [step, setStep] = useState(1)
   const [targetDashboard, setTargetDashboard] = useState(dashboards[0]?.id ?? '')
@@ -197,10 +201,10 @@ export function WidgetBuilderPage() {
                   value={st.sourceId}
                   onChange={(e) => { set('sourceId', e.target.value); set('table', ''); set('select', '') }}
                   options={[
-                    { value: SNAPSHOT_META.id, label: SNAPSHOT_META.name },
+                    ...SNAPSHOT_SOURCES.map((s) => ({ value: s.id, label: s.name })),
                     { value: DEMO_SOURCE_ID, label: 'Demo data' },
                     ...sources.map((s) => ({ value: s.id, label: s.name })),
-                  ]}
+                  ].filter((o) => useSourceActiveStore.getState().isActive(o.value))}
                 />
               </Field>
               <div className="rounded-lg border border-border bg-bg-secondary/40 p-3 text-xs">

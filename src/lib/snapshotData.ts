@@ -132,9 +132,18 @@ const TABLES: Record<string, Row[]> = {
 
 export const SNAPSHOT_TABLES = Object.keys(TABLES)
 
-// All baked snapshot sources (read-only, login-free). Each registers its own
-// table set under a unique prefix (ss_ for SmartSales, inv_ for Inventory).
-export const SNAPSHOT_SOURCES = [SNAPSHOT_META, INVENTORY_META]
+/**
+ * All baked snapshot sources (read-only, login-free). Each is a live Supabase
+ * project whose aggregates were pulled via MCP and baked here. Tables use
+ * prefixes (ss_, inv_) so multiple snapshots coexist.
+ *
+ * `live: true` marks them as "Live" sources in the UI (not Built-in like Demo)
+ * since they map to real Supabase projects. Only Demo data is a true built-in.
+ */
+export const SNAPSHOT_SOURCES = [
+  { ...SNAPSHOT_META, projectUrl: 'https://jcueieskfvhmrwcmgnyh.supabase.co', live: true as const },
+  { ...INVENTORY_META, projectUrl: 'https://abhrghwszegwgkparkgb.supabase.co', live: true as const },
+]
 const ALL_TABLES: Record<string, Row[]> = { ...TABLES, ...INVENTORY_TABLES }
 
 export function isSnapshotSource(id: string): boolean {
