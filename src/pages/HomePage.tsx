@@ -6,6 +6,7 @@ import {
   Copy,
   Layers,
   LayoutGrid,
+  Monitor,
   Pencil,
   Plus,
   RefreshCw,
@@ -28,6 +29,7 @@ import { useSourceActiveStore } from '@/stores/sourceActiveStore'
 import { ALL_SOURCES_ID } from '@/components/layout/SourceSelector'
 import type { Dashboard, GridLayoutItem, WidgetConfig } from '@/types'
 import { cn } from '@/lib/utils'
+import { TVMode } from '@/components/tv/TVMode'
 
 const ResponsiveGrid = WidthProvider(Responsive)
 
@@ -53,6 +55,7 @@ export function HomePage() {
   const [nameDraft, setNameDraft] = useState('')
   const [newName, setNewName] = useState('')
   const [newTemplate, setNewTemplate] = useState('')
+  const [tvMode, setTvMode] = useState(false)
 
   const isAll = !activeSourceId || activeSourceId === ALL_SOURCES_ID
 
@@ -108,6 +111,9 @@ export function HomePage() {
     if (!editMode || !activeDash) return
     setLayout(activeDash.id, current.map((l): GridLayoutItem => ({ i: l.i, x: l.x, y: l.y, w: l.w, h: l.h })))
   }
+
+  // TV Mode
+  if (tvMode) return <TVMode onExit={() => setTvMode(false)} />
 
   if (dashboards.length === 0) {
     return (
@@ -204,6 +210,9 @@ export function HomePage() {
             </span>
           ))}
           <div className="mx-1 h-4 w-px bg-border" />
+          <Button variant="ghost" size="sm" onClick={() => setTvMode(true)} title="TV Mode">
+            <Monitor className="h-3.5 w-3.5 text-amber-400" />
+          </Button>
           <Button variant="ghost" size="sm" onClick={() => queryClient.invalidateQueries({ queryKey: ['widget'] })}>
             <RefreshCw className="h-3.5 w-3.5" />
           </Button>

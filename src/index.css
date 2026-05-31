@@ -122,3 +122,55 @@ select,
 textarea {
   font-family: inherit;
 }
+
+/* ── TV Mode styles ─────────────────────────────────────────────── */
+
+/* Widget card hover animation for TV */
+.tv-widget-card .card {
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
+              box-shadow 0.3s ease,
+              border-color 0.3s ease;
+}
+.tv-widget-card .card:hover {
+  transform: scale(1.02) translateY(-2px);
+  box-shadow: 0 0 0 1px rgba(88, 166, 255, 0.2),
+              0 12px 40px rgba(0, 0, 0, 0.6),
+              0 0 60px rgba(88, 166, 255, 0.08);
+  border-color: rgba(88, 166, 255, 0.25);
+  z-index: 10;
+}
+
+/* Smooth fade-in for TV widget content */
+.tv-widgets .react-grid-item {
+  animation: tv-slide-in 0.6s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+.tv-widgets .react-grid-item:nth-child(1) { animation-delay: 0.05s; }
+.tv-widgets .react-grid-item:nth-child(2) { animation-delay: 0.1s; }
+.tv-widgets .react-grid-item:nth-child(3) { animation-delay: 0.15s; }
+.tv-widgets .react-grid-item:nth-child(4) { animation-delay: 0.2s; }
+.tv-widgets .react-grid-item:nth-child(5) { animation-delay: 0.25s; }
+.tv-widgets .react-grid-item:nth-child(6) { animation-delay: 0.3s; }
+.tv-widgets .react-grid-item:nth-child(7) { animation-delay: 0.35s; }
+.tv-widgets .react-grid-item:nth-child(8) { animation-delay: 0.4s; }
+.tv-widgets .react-grid-item:nth-child(9) { animation-delay: 0.45s; }
+.tv-widgets .react-grid-item:nth-child(10) { animation-delay: 0.5s; }
+.tv-widgets .react-grid-item:nth-child(n+11) { animation-delay: 0.55s; }
+
+@keyframes tv-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(24px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Glow pulse on KPI values in TV mode */
+.tv-widget-card .font-data {
+  text-shadow: 0 0 20px rgba(230, 237, 243, 0.15);
+}
+.tv-widget-card .card:hover .font-data {
+  text-shadow: 0 0 30px rgba(88, 166, 255, 0.3);
+}
