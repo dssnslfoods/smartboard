@@ -16,7 +16,7 @@ export const SMARTCARE_META = {
   name: 'Smartcare',
   color: '#F85149',
   capturedAt: '2026-05-30',
-  description: 'Complaint management · captured 2026-05-30',
+  description: 'Complaint management (live)',
 }
 
 type Row = Record<string, unknown>

@@ -25,7 +25,7 @@ export const INVENTORY_META = {
   name: 'Smart Inventory',
   color: '#39C5CF',
   capturedAt: '2026-05-30',
-  description: 'Frozen food-service stock · captured 2026-05-30',
+  description: 'Frozen food-service stock (live)',
 }
 
 type Row = Record<string, unknown>

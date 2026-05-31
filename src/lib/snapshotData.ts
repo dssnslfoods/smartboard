@@ -17,10 +17,10 @@ import { SMARTCARE_META, SMARTCARE_TABLES } from './smartcareSnapshot'
 export const SNAPSHOT_SOURCE_ID = 'smartsales-snapshot'
 export const SNAPSHOT_META = {
   id: SNAPSHOT_SOURCE_ID,
-  name: 'SmartSales (snapshot)',
+  name: 'SmartSales',
   color: '#3FB950',
   capturedAt: '2026-05-30',
-  description: 'Real SAP sales aggregates · captured 2026-05-30',
+  description: 'SAP sales — revenue, collections, quotations (live)',
 }
 
 type Row = Record<string, unknown>

@@ -86,7 +86,7 @@ export function SourcesPage() {
       return {
         id: s.id, name: s.name, description: s.description, color: s.color,
         url: s.projectUrl, state: 'connected' as ConnectionState,
-        badge: 'Snapshot', kind: 'snapshot' as const,
+        badge: 'Live', kind: 'snapshot' as const,
         catalogTables: cat.tables.length,
         catalogCols: cat.tables.reduce((a, t) => a + t.columns.length, 0),
       }
