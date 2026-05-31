@@ -388,53 +388,62 @@ function TVGrid({ layouts, widgets }: { layouts: Record<string, Array<{ i: strin
 
   const maxRow = useMemo(() => tvLayout.reduce((m, l) => Math.max(m, l.y + l.h), 1), [tvLayout])
 
-  const [scale, setScale] = useState(1)
+  const [dims, setDims] = useState({ rh: 40, scale: 1 })
 
   useEffect(() => {
     const calc = () => {
       if (!containerRef.current) return
       const availH = containerRef.current.clientHeight
-      // Use a generous rowHeight for readability, then CSS scale to fit
-      const naturalH = maxRow * (48 + 12) // rowHeight 48 + gap 12
-      if (naturalH > availH) {
-        setScale(Math.max(0.45, availH / naturalH))
+      const gap = 8
+      // Try fitting with rowHeight calculation first
+      const idealRh = Math.floor((availH - (maxRow + 1) * gap) / maxRow)
+
+      if (idealRh >= 20) {
+        // Fits naturally — no scaling needed
+        setDims({ rh: idealRh, scale: 1 })
       } else {
-        setScale(1)
+        // Too many rows — use a readable rowHeight (32) and scale down
+        const naturalH = maxRow * (32 + gap) + gap
+        const scale = Math.max(0.5, availH / naturalH)
+        setDims({ rh: 32, scale })
       }
-      setRowHeight(48)
     }
     calc()
     window.addEventListener('resize', calc)
-    return () => window.removeEventListener('resize', calc)
+    const t = setTimeout(calc, 100)
+    return () => { window.removeEventListener('resize', calc); clearTimeout(t) }
   }, [maxRow])
 
+  const gridEl = (
+    <ResponsiveGrid
+      className="layout"
+      layouts={{ lg: tvLayout }}
+      breakpoints={{ lg: 996, md: 768, sm: 0 }}
+      cols={{ lg: 12, md: 8, sm: 4 }}
+      rowHeight={dims.rh}
+      margin={[8, 8]}
+      isDraggable={false}
+      isResizable={false}
+    >
+      {widgets.map((w: WidgetConfig) => (
+        <div key={w.id} className="tv-widget-card">
+          <WidgetRenderer config={w} editMode={false} />
+        </div>
+      ))}
+    </ResponsiveGrid>
+  )
+
   return (
-    <div ref={containerRef} className="flex-1 overflow-hidden tv-widgets">
-      <div
-        style={{
-          transform: `scale(${scale})`,
+    <div ref={containerRef} className="flex-1 overflow-hidden px-2 tv-widgets">
+      {dims.scale < 1 ? (
+        <div style={{
+          transform: `scale(${dims.scale})`,
           transformOrigin: 'top center',
-          width: scale < 1 ? `${100 / scale}%` : '100%',
-          padding: '0 12px',
-        }}
-      >
-        <ResponsiveGrid
-          className="layout"
-          layouts={{ lg: tvLayout }}
-          breakpoints={{ lg: 996, md: 768, sm: 0 }}
-          cols={{ lg: 12, md: 8, sm: 4 }}
-          rowHeight={rowHeight}
-          margin={[12, 12]}
-          isDraggable={false}
-          isResizable={false}
-        >
-          {widgets.map((w: WidgetConfig) => (
-            <div key={w.id} className="tv-widget-card">
-              <WidgetRenderer config={w} editMode={false} />
-            </div>
-          ))}
-        </ResponsiveGrid>
-      </div>
+          width: `${100 / dims.scale}%`,
+        }}>
+          {gridEl}
+        </div>
+      ) : gridEl}
     </div>
   )
 }
