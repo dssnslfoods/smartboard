@@ -1,6 +1,6 @@
 import type { QueryConfig } from '@/types'
-import { INVENTORY_META, INVENTORY_SOURCE_ID, INVENTORY_TABLES } from './inventorySnapshot'
-import { SMARTCARE_META, SMARTCARE_SOURCE_ID, SMARTCARE_TABLES } from './smartcareSnapshot'
+import { INVENTORY_META, INVENTORY_TABLES } from './inventorySnapshot'
+import { SMARTCARE_META, SMARTCARE_TABLES } from './smartcareSnapshot'
 
 /**
  * SmartSales real-data SNAPSHOT.
@@ -149,7 +149,7 @@ export const SNAPSHOT_SOURCES = [
 const ALL_TABLES: Record<string, Row[]> = { ...TABLES, ...INVENTORY_TABLES, ...SMARTCARE_TABLES }
 
 export function isSnapshotSource(id: string): boolean {
-  return id === SNAPSHOT_SOURCE_ID || id === INVENTORY_SOURCE_ID || id === SMARTCARE_SOURCE_ID
+  return SNAPSHOT_SOURCES.some((s) => s.id === id)
 }
 
 export function isSnapshotTable(table: string): boolean {

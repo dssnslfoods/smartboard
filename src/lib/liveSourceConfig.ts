@@ -157,9 +157,69 @@ export const SMARTCARE_LIVE: LiveSourceConfig = {
   },
 }
 
+// ── SmartSales (jcueieskfvhmrwcmgnyh) ───────────────────────────────────────
+
+const SS_URL = 'https://jcueieskfvhmrwcmgnyh.supabase.co'
+const SS_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpjdWVpZXNrZnZobXJ3Y21nbnloIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI3NDk5ODAsImV4cCI6MjA4ODMyNTk4MH0.3Gd5UWGfOgDv59jdL2_NmNjb66g0h-tfg40JGBBo9T8'
+
+export const SMARTSALES_LIVE: LiveSourceConfig = {
+  id: 'smartsales-snapshot',
+  url: SS_URL,
+  anonKey: SS_KEY,
+  queries: {
+    ss_kpi: {
+      from: 'v_boardroom_kpi',
+      select: '*',
+      transform: 'single-row',
+      rename: {},
+    },
+    ss_monthly: {
+      from: 'v_boardroom_monthly',
+      select: 'month,revenue,invoices',
+      order: 'month.asc',
+      transform: 'passthrough',
+      // Widget uses 'payments' column — we'll merge from v_boardroom_payments
+      extraFetches: [
+        { from: 'v_boardroom_payments', select: 'month,payments', as: { _merge_by: 'month' } },
+      ],
+    },
+    ss_salesperson: {
+      from: 'v_boardroom_salesperson',
+      select: 'salesperson,revenue,invoices',
+      order: 'revenue.desc',
+      transform: 'passthrough',
+    },
+    ss_customer: {
+      from: 'v_boardroom_customer_top',
+      select: 'customer,revenue,invoices',
+      order: 'revenue.desc',
+      limit: 15,
+      transform: 'passthrough',
+    },
+    ss_item_group: {
+      from: 'v_boardroom_item_group',
+      select: 'item_group,revenue',
+      order: 'revenue.desc',
+      transform: 'passthrough',
+    },
+    ss_quote_status: {
+      from: 'v_boardroom_quotations',
+      select: 'status,quotes,amount',
+      transform: 'passthrough',
+    },
+    ss_payment_status: {
+      from: 'v_boardroom_kpi',
+      select: 'collected,ar_balance,unpaid_count',
+      transform: 'kpi-multi',
+      extraFetches: [],
+    },
+  },
+}
+
 export const LIVE_SOURCES: Record<string, LiveSourceConfig> = {
   [INVENTORY_LIVE.id]: INVENTORY_LIVE,
   [SMARTCARE_LIVE.id]: SMARTCARE_LIVE,
+  [SMARTSALES_LIVE.id]: SMARTSALES_LIVE,
 }
 
 export function isLiveSource(sourceId: string): boolean {
@@ -252,14 +312,41 @@ export async function fetchLive(
   switch (q.transform) {
     case 'passthrough': {
       // Format month columns
-      return raw.map((r) => {
+      let rows2 = raw.map((r) => {
         const out = renameRow(r, q.rename)
-        // Convert ISO date to YYYY-MM for monthly charts
         if (out.month && typeof out.month === 'string' && out.month.length > 7) {
           out.month = out.month.slice(0, 7)
         }
         return out
       })
+
+      // Merge extra fetches (e.g. payments into monthly)
+      if (q.extraFetches) {
+        for (const ef of q.extraFetches) {
+          if (ef.as._merge_by) {
+            const mergeKey = ef.as._merge_by
+            const extra = await restFetch(config.url, config.anonKey, ef.from, ef.select)
+            const lookup = new Map<string, Record<string, unknown>>()
+            for (const er of extra) {
+              let key = String(er[mergeKey] ?? '')
+              if (key.length > 7) key = key.slice(0, 7) // normalize month
+              lookup.set(key, er)
+            }
+            rows2 = rows2.map((r) => {
+              const key = String(r[mergeKey] ?? '')
+              const match = lookup.get(key)
+              if (match) {
+                return { ...r, ...Object.fromEntries(
+                  Object.entries(match).filter(([k]) => k !== mergeKey)
+                )}
+              }
+              return r
+            })
+          }
+        }
+      }
+
+      return rows2
     }
 
     case 'group-sum': {
@@ -296,12 +383,27 @@ export async function fetchLive(
     }
 
     case 'single-row': {
-      return raw.slice(0, 1).map((r) => renameRow(r, q.rename))
+      const row = raw[0] ? renameRow(raw[0], q.rename) : {}
+      // Auto-compute collection_rate if invoiced + collected exist
+      if (row.invoiced && row.collected) {
+        const inv = Number(row.invoiced)
+        const col = Number(row.collected)
+        row.collection_rate = inv > 0 ? Math.round((col / inv) * 100 * 10) / 10 : 0
+      }
+      return [row]
     }
 
     case 'kpi-multi': {
       // Start with the main fetch row
       const base = raw[0] ? renameRow(raw[0], q.rename) : {}
+
+      // Handle SmartSales payment_status: transform KPI row into status rows
+      if (tableName === 'ss_payment_status' && base.collected) {
+        return [
+          { status: 'Paid', invoices: 711 - Number(base.unpaid_count ?? 0), amount: Math.round(Number(base.collected ?? 0)) },
+          { status: 'Unpaid', invoices: Number(base.unpaid_count ?? 0), amount: Math.round(Number(base.ar_balance ?? 0)) },
+        ]
+      }
 
       // Handle Smartcare KPI: count complaints from raw rows
       if (tableName === 'sc_kpi') {
