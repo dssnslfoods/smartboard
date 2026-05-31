@@ -312,25 +312,8 @@ export function TVMode({ onExit }: Props) {
         </div>
       )}
 
-      {/* ── Widget grid ────────────────────────────────────── */}
-      <div className="flex-1 overflow-auto px-4 pb-4 tv-widgets">
-        <ResponsiveGrid
-          className="layout"
-          layouts={layouts}
-          breakpoints={{ lg: 996, md: 768, sm: 0 }}
-          cols={{ lg: 12, md: 8, sm: 4 }}
-          rowHeight={56}
-          margin={[16, 16]}
-          isDraggable={false}
-          isResizable={false}
-        >
-          {current.widgets.map((w: WidgetConfig) => (
-            <div key={w.id} className="tv-widget-card">
-              <WidgetRenderer config={w} editMode={false} />
-            </div>
-          ))}
-        </ResponsiveGrid>
-      </div>
+      {/* ── Widget grid (fit to screen — no scroll) ─────────── */}
+      <TVGrid layouts={layouts} widgets={current.widgets} />
 
       {/* ── Keyboard hints ─────────────────────────────────── */}
       <div
@@ -344,6 +327,113 @@ export function TVMode({ onExit }: Props) {
         <span>L: Laser</span>
         <span>F: Fullscreen</span>
         <span>Esc: Exit</span>
+      </div>
+    </div>
+  )
+}
+
+// ── TV Grid: auto-fit all widgets into viewport (no scroll) ──────────────────
+
+/**
+ * TV Grid: compacts the layout to fit all widgets on one screen.
+ * KPI widgets → small row at top. Charts/tables → fill remaining space.
+ * No scrolling.
+ */
+function TVGrid({ layouts, widgets }: { layouts: Record<string, Array<{ i: string; x: number; y: number; w: number; h: number }>>; widgets: WidgetConfig[] }) {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [rowHeight, setRowHeight] = useState(40)
+
+  // Build a compacted TV layout: KPIs get 2 rows, charts get equal share of remaining
+  const tvLayout = useMemo(() => {
+    const items = layouts.lg ?? []
+    if (!items.length) return items
+
+    // Separate KPIs (h<=3 in original) from charts/tables
+    const kpis = items.filter((l) => l.h <= 3)
+    const charts = items.filter((l) => l.h > 3)
+
+    const kpiRowH = 2 // KPIs are compact (2 grid rows)
+    const chartStartY = kpis.length > 0 ? kpiRowH : 0
+
+    // How many chart rows can we stack? Each gets equal height
+    // Find distinct Y values among charts to know how many rows of charts
+    const chartYs = [...new Set(charts.map((c) => c.y))].sort((a, b) => a - b)
+    const chartRowCount = chartYs.length || 1
+    const chartH = Math.max(3, Math.floor((20 - chartStartY) / chartRowCount)) // assume ~20 total grid rows
+
+    const compacted: typeof items = []
+
+    // Place KPIs in row 0
+    if (kpis.length) {
+      const kpiW = Math.floor(12 / kpis.length)
+      kpis.forEach((l, i) => {
+        compacted.push({ ...l, x: i * kpiW, y: 0, w: kpiW, h: kpiRowH })
+      })
+    }
+
+    // Place charts/tables in subsequent rows
+    const yMap = new Map<number, number>() // original Y → new Y
+    chartYs.forEach((origY, idx) => yMap.set(origY, chartStartY + idx * chartH))
+
+    charts.forEach((l) => {
+      compacted.push({
+        ...l,
+        y: yMap.get(l.y) ?? chartStartY,
+        h: chartH,
+      })
+    })
+
+    return compacted
+  }, [layouts])
+
+  const maxRow = useMemo(() => tvLayout.reduce((m, l) => Math.max(m, l.y + l.h), 1), [tvLayout])
+
+  const [scale, setScale] = useState(1)
+
+  useEffect(() => {
+    const calc = () => {
+      if (!containerRef.current) return
+      const availH = containerRef.current.clientHeight
+      // Use a generous rowHeight for readability, then CSS scale to fit
+      const naturalH = maxRow * (48 + 12) // rowHeight 48 + gap 12
+      if (naturalH > availH) {
+        setScale(Math.max(0.45, availH / naturalH))
+      } else {
+        setScale(1)
+      }
+      setRowHeight(48)
+    }
+    calc()
+    window.addEventListener('resize', calc)
+    return () => window.removeEventListener('resize', calc)
+  }, [maxRow])
+
+  return (
+    <div ref={containerRef} className="flex-1 overflow-hidden tv-widgets">
+      <div
+        style={{
+          transform: `scale(${scale})`,
+          transformOrigin: 'top center',
+          width: scale < 1 ? `${100 / scale}%` : '100%',
+          padding: '0 12px',
+        }}
+      >
+        <ResponsiveGrid
+          className="layout"
+          layouts={{ lg: tvLayout }}
+          breakpoints={{ lg: 996, md: 768, sm: 0 }}
+          cols={{ lg: 12, md: 8, sm: 4 }}
+          rowHeight={rowHeight}
+          margin={[12, 12]}
+          isDraggable={false}
+          isResizable={false}
+        >
+          {widgets.map((w: WidgetConfig) => (
+            <div key={w.id} className="tv-widget-card">
+              <WidgetRenderer config={w} editMode={false} />
+            </div>
+          ))}
+        </ResponsiveGrid>
       </div>
     </div>
   )
