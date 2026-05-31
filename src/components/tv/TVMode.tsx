@@ -341,7 +341,6 @@ export function TVMode({ onExit }: Props) {
  */
 function TVGrid({ layouts, widgets }: { layouts: Record<string, Array<{ i: string; x: number; y: number; w: number; h: number }>>; widgets: WidgetConfig[] }) {
   const containerRef = useRef<HTMLDivElement>(null)
-  const [rowHeight, setRowHeight] = useState(40)
 
   // Build a compacted TV layout: KPIs get 2 rows, charts get equal share of remaining
   const tvLayout = useMemo(() => {
